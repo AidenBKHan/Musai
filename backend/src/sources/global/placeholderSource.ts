@@ -1,26 +1,23 @@
-import { SafetyIndex, computeOverallScore } from '../../models/safetyIndex';
+import { SafetyIndex, computeOverallScore, statusFor, STATUS_LABELS } from '../../models/safetyIndex';
 import { SafetySearchQuery, SafetySource } from '../types';
 
+// FR/JP (and any future MVP destination) are handled by DataGoKrSource with
+// real MOFA-shaped data; this list intentionally excludes them.
 const COUNTRIES: Record<string, string> = {
   US: 'United States',
   GB: 'United Kingdom',
-  FR: 'France',
   DE: 'Germany',
-  JP: 'Japan',
   CN: 'China',
   AU: 'Australia',
   CA: 'Canada',
 };
 
 /**
- * Stand-in for the many country-specific government sources that still need
- * to be integrated (each country publishes its own crime/disaster/traffic
- * open data under its own API). Produces a deterministic, clearly-labeled
- * placeholder score so the app/widget pipeline works for "any country" today,
- * without pretending to have live data no one has verified yet.
- *
- * Replace this with real per-country SafetySource implementations
- * (see sources/kr/dataGoKrSource.ts for the pattern) as they're integrated.
+ * Stand-in for the many destinations not yet covered by a real government
+ * data source (see sources/kr/dataGoKrSource.ts for that pattern). Produces
+ * a deterministic, clearly-labeled placeholder score so the app/widget
+ * pipeline works for "any country" today, without pretending to have live
+ * data no one has verified yet.
  */
 export class PlaceholderGlobalSource implements SafetySource {
   readonly countryCodes = Object.keys(COUNTRIES);
@@ -46,10 +43,15 @@ export class PlaceholderGlobalSource implements SafetySource {
       { label: 'Disaster safety (placeholder)', score: this.deterministicScore(countryCode, 2), weight: 1 },
       { label: 'Traffic safety (placeholder)', score: this.deterministicScore(countryCode, 3), weight: 1 },
     ];
+    const score = computeOverallScore(factors);
+    const status = statusFor(score);
     return {
       countryCode,
       countryName,
-      score: computeOverallScore(factors),
+      score,
+      status,
+      statusLabel: STATUS_LABELS[status],
+      safeHowTip: '실제 데이터 연동 전 표시되는 샘플 안내입니다.',
       updatedAt: new Date().toISOString(),
       sourceName: this.sourceName,
       factors,

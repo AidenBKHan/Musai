@@ -12,7 +12,25 @@ describe('GET /v1/safety-index/:countryCode', () => {
     expect(res.body.score).toBe(72);
     expect(res.body.status).toBe('caution');
     expect(res.body.statusLabel).toBe('유의 필요');
-    expect(typeof res.body.safeHowTip).toBe('string');
+    expect(res.body.safeHowTips).toHaveLength(3);
+  });
+
+  it('returns the Osaka MVP destination matching the proposal: 84점', async () => {
+    const res = await request(createApp()).get('/v1/safety-index/JP');
+    expect(res.status).toBe(200);
+    expect(res.body.regionName).toBe('오사카');
+    expect(res.body.score).toBe(84);
+    expect(res.body.status).toBe('caution');
+    expect(res.body.safeHowTips).toHaveLength(3);
+  });
+
+  it('returns the Phnom Penh MVP destination matching the proposal: 52점', async () => {
+    const res = await request(createApp()).get('/v1/safety-index/KH');
+    expect(res.status).toBe(200);
+    expect(res.body.regionName).toBe('프놈펜');
+    expect(res.body.score).toBe(52);
+    expect(res.body.status).toBe('warning');
+    expect(res.body.safeHowTips).toHaveLength(3);
   });
 
   it('returns the placeholder global source for a non-MVP country', async () => {

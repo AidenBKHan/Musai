@@ -42,8 +42,11 @@ export interface SafetyIndex {
   score: number;
   status: SafetyStatus;
   statusLabel: string;
-  /** One-line "Safe-How" action guide, e.g. "소매치기·여권 분실에 유의하세요". */
-  safeHowTip: string;
+  /**
+   * Safe-How action guide — 3 short, immediately actionable sentences per
+   * the proposal's 처리 흐름 spec ("핵심 위험요약, 행동가이드 3개").
+   */
+  safeHowTips: string[];
   updatedAt: string;
   sourceName: string;
   factors: SafetyIndexFactor[];

@@ -51,7 +51,7 @@ export class PlaceholderGlobalSource implements SafetySource {
       score,
       status,
       statusLabel: STATUS_LABELS[status],
-      safeHowTip: '실제 데이터 연동 전 표시되는 샘플 안내입니다.',
+      safeHowTips: ['실제 데이터 연동 전 표시되는 샘플 안내입니다.'],
       updatedAt: new Date().toISOString(),
       sourceName: this.sourceName,
       factors,

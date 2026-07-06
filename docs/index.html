@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Musai — 글로벌 안전지수</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  .subtitle { opacity: .7; margin-top: 0; }
+  .widgets { display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0 40px; }
+  pre {
+    background: rgba(127,127,127,.12);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+  code { font-size: 13px; }
+  section { margin-bottom: 40px; }
+</style>
+</head>
+<body>
+  <h1>Musai</h1>
+  <p class="subtitle">전 세계 어디든 확인할 수 있는 글로벌 안전지수 — 앱, 홈스크린 위젯, 그리고 다른 웹사이트에 바로 붙일 수 있는 웹 위젯으로 제공됩니다.</p>
+
+  <section>
+    <h2>웹 위젯 미리보기</h2>
+    <p>아래는 <code>musai-widget.js</code>를 그대로 임베드한 실제 결과입니다. 아직 백엔드가 공개 배포되지 않아 <strong>데모 모드</strong>(placeholder 데이터)로 표시됩니다.</p>
+    <div class="widgets">
+      <div class="musai-safety-widget" data-country="KR" data-region="Seoul"></div>
+      <div class="musai-safety-widget" data-country="FR"></div>
+      <div class="musai-safety-widget" data-country="JP"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>다른 웹사이트에 적용하는 방법</h2>
+    <pre><code>&lt;div class="musai-safety-widget"
+     data-country="KR"
+     data-region="Seoul"
+     data-api-base="https://your-musai-backend.example.com"&gt;&lt;/div&gt;
+&lt;script src="https://your-cdn.example.com/musai-widget.js" async&gt;&lt;/script&gt;</code></pre>
+    <p>자세한 옵션은 저장소의 <code>web-widget/README.md</code>를 참고하세요.</p>
+  </section>
+
+  <section>
+    <h2>프로젝트 구성</h2>
+    <ul>
+      <li><code>app/</code> — Flutter 앱 + Android/iOS 홈스크린 위젯</li>
+      <li><code>backend/</code> — 국가별 안전 데이터를 표준 스키마로 합쳐주는 API</li>
+      <li><code>web-widget/</code> — 이 페이지에 쓰인 임베드 가능한 웹 위젯</li>
+    </ul>
+  </section>
+
+  <script src="musai-widget.js"></script>
+</body>
+</html>

@@ -34,19 +34,28 @@ export interface SafetyIndexFactor {
   score: number;
 }
 
+export interface SafeHowTip {
+  icon: string;
+  text: string;
+}
+
 export interface SafetyIndex {
   countryCode: string;
   countryName: string;
   regionName?: string;
+  /** Short context word shown in the widget headline, e.g. "관광지", "입국 전". */
+  contextLabel?: string;
   /** 안전체크 지수, 0–100 — higher is safer. */
   score: number;
   status: SafetyStatus;
   statusLabel: string;
+  /** Short keyword chips for the widget's risk-tag row, e.g. "소매치기". */
+  riskTags: string[];
   /**
    * Safe-How action guide — 3 short, immediately actionable sentences per
    * the proposal's 처리 흐름 spec ("핵심 위험요약, 행동가이드 3개").
    */
-  safeHowTips: string[];
+  safeHowTips: SafeHowTip[];
   updatedAt: string;
   sourceName: string;
   factors: SafetyIndexFactor[];

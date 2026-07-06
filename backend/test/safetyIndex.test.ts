@@ -12,7 +12,11 @@ describe('GET /v1/safety-index/:countryCode', () => {
     expect(res.body.score).toBe(72);
     expect(res.body.status).toBe('caution');
     expect(res.body.statusLabel).toBe('유의 필요');
+    expect(res.body.contextLabel).toBe('관광지');
+    expect(res.body.riskTags).toEqual(['소매치기', '여권 분실', '관광지 주변 범죄']);
     expect(res.body.safeHowTips).toHaveLength(3);
+    expect(res.body.safeHowTips[0]).toHaveProperty('icon');
+    expect(res.body.safeHowTips[0]).toHaveProperty('text');
   });
 
   it('returns the Osaka MVP destination matching the proposal: 84점', async () => {
@@ -21,6 +25,7 @@ describe('GET /v1/safety-index/:countryCode', () => {
     expect(res.body.regionName).toBe('오사카');
     expect(res.body.score).toBe(84);
     expect(res.body.status).toBe('caution');
+    expect(res.body.riskTags).toHaveLength(3);
     expect(res.body.safeHowTips).toHaveLength(3);
   });
 
@@ -30,6 +35,7 @@ describe('GET /v1/safety-index/:countryCode', () => {
     expect(res.body.regionName).toBe('프놈펜');
     expect(res.body.score).toBe(52);
     expect(res.body.status).toBe('warning');
+    expect(res.body.riskTags).toHaveLength(4);
     expect(res.body.safeHowTips).toHaveLength(3);
   });
 

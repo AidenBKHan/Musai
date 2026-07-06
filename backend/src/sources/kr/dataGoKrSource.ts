@@ -1,5 +1,6 @@
 import {
   RiskComponent,
+  SafeHowTip,
   SafetyIndex,
   computeSafetyCheckIndex,
   statusFor,
@@ -11,10 +12,12 @@ interface DestinationProfile {
   countryCode: string;
   countryName: string;
   regionName: string;
+  contextLabel: string;
   /** English names accepted for text search (city, country, etc). */
   aliases: string[];
   components: RiskComponent[];
-  safeHowTips: string[];
+  riskTags: string[];
+  safeHowTips: SafeHowTip[];
 }
 
 /**
@@ -38,12 +41,19 @@ interface DestinationProfile {
  * weights and each destination's qualitative risk themes from the proposal
  * (Osaka: 세관·의약품 반입, low crime, typhoon season; Phnom Penh: 여행자제
  * 단계, 고수익 취업 제안 사기, elevated personal-safety risk).
+ *
+ * riskTags and safeHowTips are taken from the .hwp's own embedded mockup
+ * screenshots ([그림4] mobile/Paris, [그림3] desktop/Phnom Penh — both
+ * legible; [그림2] tablet/Osaka's Safe-How icons were partly illegible at
+ * the extracted resolution, so Osaka's tips are drawn from the clearer
+ * narrative text elsewhere in the proposal instead of guessed from pixels).
  */
 const DESTINATIONS: DestinationProfile[] = [
   {
     countryCode: 'FR',
     countryName: '프랑스',
     regionName: '파리',
+    contextLabel: '관광지',
     aliases: ['paris', 'france'],
     components: [
       { label: '여행경보 위험점수', riskScore: 20, weight: 0.4 },
@@ -51,16 +61,18 @@ const DESTINATIONS: DestinationProfile[] = [
       { label: '사건사고·치안 위험점수', riskScore: 50, weight: 0.2 },
       { label: '기상·재난 위험점수', riskScore: 27, weight: 0.15 },
     ],
+    riskTags: ['소매치기', '여권 분실', '관광지 주변 범죄'],
     safeHowTips: [
-      '주요 관광지·대중교통 이용 시 소매치기에 유의하세요.',
-      '여권·휴대폰 분실에 대비해 사본을 별도로 보관하세요.',
-      '군중이 밀집한 시위·집회 지역은 피해서 이동하세요.',
+      { icon: '🎒', text: '백팩은 앞으로 메고 지퍼를 잠그세요.' },
+      { icon: '⚠️', text: '야외 테이블 위에 스마트폰과 지갑을 올려두지 마세요.' },
+      { icon: '📔', text: '여권 원본과 사본을 분리해 보관하세요.' },
     ],
   },
   {
     countryCode: 'JP',
     countryName: '일본',
     regionName: '오사카',
+    contextLabel: '입국 전',
     aliases: ['osaka', 'japan'],
     components: [
       { label: '여행경보 위험점수', riskScore: 10, weight: 0.4 },
@@ -68,16 +80,18 @@ const DESTINATIONS: DestinationProfile[] = [
       { label: '사건사고·치안 위험점수', riskScore: 10, weight: 0.2 },
       { label: '기상·재난 위험점수', riskScore: 40, weight: 0.15 },
     ],
+    riskTags: ['의약품 반입', '입국 유의', '여권 분실'],
     safeHowTips: [
-      '처방전이 필요한 의약품은 반입 규정을 출국 전 확인하세요.',
-      '세관 신고 대상 품목을 미리 확인하세요.',
-      '여권·수하물 분실·도난에 대비해 사본을 보관하세요.',
+      { icon: '💊', text: '처방전이 필요한 의약품은 반입 규정을 출국 전 확인하세요.' },
+      { icon: '🛃', text: '세관 신고 대상 품목을 미리 확인하세요.' },
+      { icon: '📔', text: '여권·수하물 분실·도난에 대비해 사본을 보관하세요.' },
     ],
   },
   {
     countryCode: 'KH',
     countryName: '캄보디아',
     regionName: '프놈펜',
+    contextLabel: '출장·장기체류',
     aliases: ['phnom penh', 'cambodia'],
     components: [
       { label: '여행경보 위험점수', riskScore: 50, weight: 0.4 },
@@ -85,10 +99,11 @@ const DESTINATIONS: DestinationProfile[] = [
       { label: '사건사고·치안 위험점수', riskScore: 55, weight: 0.2 },
       { label: '기상·재난 위험점수', riskScore: 20, weight: 0.15 },
     ],
+    riskTags: ['고수익 취업제안', '여권 보관 요구', '최신 공지 5건', '긴급 연락처'],
     safeHowTips: [
-      '고수익 해외 취업 제안은 사실 확인 없이 응하지 마세요.',
-      '여권은 본인이 직접 보관하고 타인에게 맡기지 마세요.',
-      '출국 전 재외공관 연락처를 미리 확인해두세요.',
+      { icon: '📄', text: '출국 전 회사·계약서·사업자 정보를 반드시 확인하세요.' },
+      { icon: '🔒', text: '여권 원본을 타인에게 맡기지 말고, 본인이 직접 보관하세요.' },
+      { icon: '⚠️', text: '위험 상황 발생 시 재외공관 공식 연락처로 우선 연락하세요.' },
     ],
   },
 ];
@@ -134,9 +149,11 @@ export class DataGoKrSource implements SafetySource {
       countryCode: profile.countryCode,
       countryName: profile.countryName,
       regionName: profile.regionName,
+      contextLabel: profile.contextLabel,
       score,
       status,
       statusLabel: STATUS_LABELS[status],
+      riskTags: profile.riskTags,
       safeHowTips: profile.safeHowTips,
       updatedAt: new Date().toISOString(),
       sourceName: this.sourceName,

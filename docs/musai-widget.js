@@ -11,7 +11,7 @@
  *        data-region="파리"
  *        data-layout="card"
  *        data-api-base="https://your-musai-backend.example.com"></div>
- *   <script src="https://your-cdn.example.com/musai-widget.js" async></script>
+ *   <script src="https://aidenbkhan.github.io/musai/musai-widget.js" async></script>
  *
  * `data-layout` is one of:
  *   - "card" (default) — compact, static, small circular mascot avatar

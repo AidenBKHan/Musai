@@ -88,6 +88,8 @@
     <p class="section-note">
       나라 코드는 필수, 지역명은 화면에만 표시되는 선택 값입니다.
       API 서버 주소를 비워두면 배포 전에도 안전하게 데모 모드로 표시됩니다.
+      마스코트 이미지는 별도 파일이 아니라 <code class="attr">musai-widget.js</code> 안에 내장되어 있어서,
+      아래 스니펫의 <code class="attr">script src</code>만 실제로 접근 가능한 주소로 두면 이미지까지 그대로 따라옵니다.
     </p>
     <div class="form-grid">
       <label for="in-country">목적지 국가 코드 *</label>
@@ -172,7 +174,7 @@
 
         snippetEl.textContent =
           '<div class="musai-safety-widget"\n     ' + attrs.join('\n     ') + '></div>\n' +
-          '<script src="https://your-cdn.example.com/musai-widget.js" async><' + '/script>';
+          '<script src="https://aidenbkhan.github.io/musai/musai-widget.js" async><' + '/script>';
 
         window.MusaiWidget.renderInto(previewEl, {
           countryCode: p.countryCode,

@@ -13,11 +13,17 @@ conflicting with the host page's CSS.
      data-region="파리"
      data-layout="bottomsheet"
      data-api-base="https://your-musai-backend.example.com"></div>
-<script src="https://your-cdn.example.com/musai-widget.js" async></script>
+<script src="https://aidenbkhan.github.io/musai/musai-widget.js" async></script>
 ```
 
 Multiple widgets can be dropped on the same page — each `.musai-safety-widget`
 element is picked up independently.
+
+The mascot image is base64-embedded inside `musai-widget.js` itself, not a
+separate file — if you copy just the `<div>` without pointing `script src`
+at somewhere that actually serves the real file, nothing renders, image
+included. Use the GitHub Pages URL above (once Pages is enabled on this
+repo) or your own hosted copy.
 
 ### Data attributes
 

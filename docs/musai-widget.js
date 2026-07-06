@@ -15,6 +15,11 @@
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
  * breaking the host page.
+ *
+ * Host pages that need to re-render a widget on demand (e.g. after a user
+ * picks a different country) can call `window.MusaiWidget.renderInto(el, {
+ * countryCode, regionName, apiBase })` directly instead of relying on the
+ * one-time data-attribute scan.
  */
 (function () {
   var DEMO_SCORES = {
@@ -70,14 +75,15 @@
       '</div>';
   }
 
-  function init(el) {
-    var countryCode = el.getAttribute('data-country');
+  /** Renders (or re-renders) one widget element with an explicit param set. */
+  function renderInto(el, params) {
+    var countryCode = params && params.countryCode;
     if (!countryCode) {
-      console.warn('musai-widget: element is missing data-country', el);
+      console.warn('musai-widget: renderInto requires countryCode', el);
       return;
     }
-    var regionName = el.getAttribute('data-region');
-    var apiBase = el.getAttribute('data-api-base');
+    var regionName = params.regionName;
+    var apiBase = params.apiBase;
     var location = regionName ? regionName + ', ' + countryCode.toUpperCase() : countryCode.toUpperCase();
 
     var showDemo = function () {
@@ -87,21 +93,29 @@
 
     if (!apiBase) {
       showDemo();
-      return;
+      return Promise.resolve();
     }
 
-    fetchIndex(apiBase, countryCode)
+    return fetchIndex(apiBase, countryCode)
       .then(function (data) {
         render(el, data.score, data.sourceName, location);
       })
       .catch(showDemo);
   }
 
+  function paramsFromAttributes(el) {
+    return {
+      countryCode: el.getAttribute('data-country'),
+      regionName: el.getAttribute('data-region'),
+      apiBase: el.getAttribute('data-api-base'),
+    };
+  }
+
   function scan() {
     var elements = document.querySelectorAll('.musai-safety-widget:not([data-musai-initialized])');
     for (var i = 0; i < elements.length; i++) {
       elements[i].setAttribute('data-musai-initialized', 'true');
-      init(elements[i]);
+      renderInto(elements[i], paramsFromAttributes(elements[i]));
     }
   }
 
@@ -110,4 +124,6 @@
   } else {
     scan();
   }
+
+  window.MusaiWidget = { renderInto: renderInto, rescan: scan };
 })();

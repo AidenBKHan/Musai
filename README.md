@@ -69,13 +69,18 @@ safety-index card:
 Falls back to clearly-labeled demo data if `data-api-base` is omitted or the
 request fails/times out. See `web-widget/README.md` for all options.
 
-## GitHub Pages demo (`docs/`)
+## GitHub Pages site (`docs/`)
 
-`docs/index.html` embeds the widget live and doubles as a project landing
-page. To actually serve it, the repo owner needs to flip one setting I can't
-reach via API: **Settings → Pages → Source: Deploy from a branch → Branch:
-`main`, folder `/docs`**. Once enabled it's reachable at
-`https://<owner>.github.io/<repo>/`.
+- `docs/index.html` — the project homepage: pick a country (or auto-detect
+  by IP) to see the widget render live, in demo mode until a backend is
+  deployed.
+- `docs/widget-setup.html` — integration guide for a third-party site
+  embedding the widget (e.g. a travel booking site): fill in country/region/
+  API base and it generates the exact snippet to paste, with a live preview.
+
+Requires **Settings → Pages → Source: Deploy from a branch → Branch: `main`,
+folder `/docs`** (a one-time setting only the repo owner can flip). Once
+enabled it's reachable at `https://<owner>.github.io/<repo>/`.
 
 ## Secrets
 

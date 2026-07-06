@@ -94,13 +94,18 @@ included.
 `data-layout` is `card` (default, compact), `bottomsheet` (full-width,
 anchored to the bottom of the viewport, with a dismiss button — matching the
 proposal's mobile voucher-confirmation mockup), `wide` (horizontal, large
-mascot illustration — matching the proposal's desktop sidebar mockup), or
-`bubble` (a small fixed round icon + score badge that stays out of the way
-until clicked, then expands into the `bottomsheet` view — for embedding
-Musai as a supplementary, non-intrusive add-on rather than a page-dominating
-card). Falls back to clearly-labeled demo data (using the proposal's own
-Paris/Osaka/Phnom Penh examples) if `data-api-base` is omitted or the request
-fails/times out. See `web-widget/README.md` for all options.
+mascot illustration — matching the proposal's desktop sidebar mockup),
+`bubble` (a small fixed round icon + score badge anchored to a viewport
+corner), or `banner` (an inline CTA bar embedded in the host page's own
+content, e.g. under a booking-confirmation receipt — matching the
+proposal's own [그림4] mockup exactly, arrow included). Both `bubble` and
+`banner` expand into the `bottomsheet` view on click and collapse back to
+themselves on close, instead of always showing the full card — for
+embedding Musai as a supplementary, non-intrusive add-on rather than a
+page-dominating card. Falls back to clearly-labeled demo data (using the
+proposal's own Paris/Osaka/Phnom Penh examples) if `data-api-base` is
+omitted or the request fails/times out. See `web-widget/README.md` for all
+options.
 
 ## GitHub Pages site
 

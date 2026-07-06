@@ -24,6 +24,11 @@
  *     the way until the visitor wants it. Clicking it expands into the full
  *     bottomsheet view; the bottomsheet's close button collapses it back
  *     into the bubble instead of removing it.
+ *   - "banner" — an inline CTA bar (mascot + score badge + "확인해 보세요")
+ *     sitting in the host page's own content flow, matching the proposal's
+ *     own [그림4] mockup (a strip under a booking-confirmation receipt).
+ *     Clicking it expands into the bottomsheet the same way "bubble" does,
+ *     and collapses back into the banner on close.
  *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
@@ -178,7 +183,21 @@
       '.bubble-avatar{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;}' +
       '.bubble-score{position:absolute;right:-4px;bottom:-4px;min-width:22px;height:22px;padding:0 4px;' +
       'border-radius:11px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;' +
-      'justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}'
+      'justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
+      '.banner{width:100%;max-width:400px;display:flex;align-items:center;gap:12px;text-align:left;' +
+      'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;border:1.5px solid #f6d9a8;' +
+      'border-radius:16px;padding:12px 14px;cursor:pointer;}' +
+      '.banner-avatarwrap{position:relative;flex:none;}' +
+      '.banner-avatar{width:44px;height:44px;border-radius:50%;display:block;}' +
+      '.banner-score{position:absolute;right:-4px;bottom:-4px;min-width:20px;height:20px;padding:0 4px;' +
+      'border-radius:10px;background:#f2921a;color:#fff;font-size:10px;font-weight:700;display:flex;' +
+      'align-items:center;justify-content:center;border:2px solid #fdf3ec;}' +
+      '.banner-textwrap{display:flex;flex-direction:column;gap:3px;min-width:0;}' +
+      '.banner-title{font-size:13.5px;font-weight:700;color:#182430;overflow:hidden;text-overflow:ellipsis;' +
+      'white-space:nowrap;}' +
+      '.banner-cta{font-size:12px;font-weight:600;color:#f2921a;display:flex;align-items:center;gap:4px;}' +
+      '.banner-chevron{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;' +
+      'border-radius:50%;background:#f2921a;color:#fff;font-size:11px;line-height:1;}'
     );
   }
 
@@ -187,6 +206,24 @@
       '<button class="bubble" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
       '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
+      '</button>'
+    );
+  }
+
+  // Matches the proposal's own [그림4] mockup: an inline CTA banner sitting
+  // in the host page's content flow (e.g. under a booking-confirmation
+  // receipt), rather than a fixed floating icon like "bubble".
+  function bannerMarkup(data, location) {
+    return (
+      '<button class="banner" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<span class="banner-avatarwrap">' +
+      '<img class="banner-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
+      '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
+      '</span>' +
+      '<span class="banner-textwrap">' +
+      '<span class="banner-title">' + location + ' 무사이 안전정보</span>' +
+      '<span class="banner-cta">확인해 보세요 <span class="banner-chevron">›</span></span>' +
+      '</span>' +
       '</button>'
     );
   }
@@ -205,8 +242,8 @@
   function bindInteractiveBits(root, el) {
     var closeBtn = root.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', function () {
-      if (el.__musaiExpandedFromBubble) {
-        render(el, el.__musaiData, el.__musaiLocation, 'bubble');
+      if (el.__musaiCollapsedOrigin) {
+        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin);
       } else {
         el.style.display = 'none';
       }
@@ -269,13 +306,14 @@
     el.__musaiData = data;
     el.__musaiLocation = location;
 
-    if (layout === 'bubble') {
+    if (layout === 'bubble' || layout === 'banner') {
       var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
-      shadow.innerHTML = '<style>' + css() + '</style>' + bubbleMarkup(data, color);
-      var bubbleBtn = shadow.querySelector('.bubble');
-      if (bubbleBtn) {
-        bubbleBtn.addEventListener('click', function () {
-          el.__musaiExpandedFromBubble = true;
+      var collapsedHtml = layout === 'bubble' ? bubbleMarkup(data, color) : bannerMarkup(data, location);
+      shadow.innerHTML = '<style>' + css() + '</style>' + collapsedHtml;
+      var collapsedBtn = shadow.querySelector(layout === 'bubble' ? '.bubble' : '.banner');
+      if (collapsedBtn) {
+        collapsedBtn.addEventListener('click', function () {
+          el.__musaiCollapsedOrigin = layout;
           render(el, data, location, 'bottomsheet');
         });
       }
@@ -298,7 +336,7 @@
     }
     var regionName = params.regionName;
     var apiBase = params.apiBase;
-    var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1 };
+    var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };
     var layout = VALID_LAYOUTS[params.layout] ? params.layout : 'card';
 
     var showDemo = function () {

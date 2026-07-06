@@ -31,8 +31,12 @@ repo) or your own hosted copy.
 |-------------------|----------|-------------------------------------------------------------------------------------------|
 | `data-country`    | yes      | Destination's ISO 3166-1 alpha-2 country code (e.g. `FR`, `JP`, `KH`)                      |
 | `data-region`     | no       | Region/city label shown above the score (display only; falls back to the backend's value) |
-| `data-layout`     | no       | `card` (default, compact) · `bottomsheet` (full-width, bottom-anchored, close button) · `wide` (horizontal, large mascot illustration — for a desktop sidebar) · `bubble` (small fixed round icon + score badge; click expands to `bottomsheet`, and its close button collapses back to the bubble instead of hiding) |
+| `data-layout`     | no       | `card` (default, compact) · `bottomsheet` (full-width, bottom-anchored, close button) · `wide` (horizontal, large mascot illustration — for a desktop sidebar) · `bubble` (small fixed round icon + score badge, anchored to a viewport corner) · `banner` (inline CTA bar embedded in the host page's own content, e.g. under a booking-confirmation receipt — matches the proposal's own mockup) |
 | `data-api-base`   | no       | Base URL of a deployed `backend/` instance. Omit to force demo mode.                       |
+
+`bubble` and `banner` both expand into `bottomsheet` on click, and the
+bottomsheet's close button collapses them back to their original shape
+instead of hiding the widget entirely.
 
 ### Demo mode
 

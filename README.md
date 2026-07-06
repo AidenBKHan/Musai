@@ -111,7 +111,11 @@ build step; `docs/` remains the source of truth to edit.
 
 - `index.html` / `docs/index.html` — the project homepage: pick a
   destination (or auto-detect by IP) to see the widget render live, in demo
-  mode until a backend is deployed.
+  mode until a backend is deployed. Also has a side-by-side gallery of all
+  three layouts (`card` / `bottomsheet` / `wide`) so you can see them without
+  switching options — the bottom-sheet one is shown inside a phone-frame
+  `<iframe>` (`bottomsheet-demo.html`) so its `position: fixed` stays
+  contained instead of anchoring to the real page.
 - `widget-setup.html` / `docs/widget-setup.html` — integration guide for a
   travel/insurance/study-abroad platform embedding the widget: fill in
   destination/region/layout/API base and it generates the exact snippet to

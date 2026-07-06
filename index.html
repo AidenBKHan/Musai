@@ -63,6 +63,15 @@
   }
   .map span { opacity: .7; }
   a { color: #00897b; }
+
+  .gallery { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  .gallery-item { flex: 0 0 auto; }
+  .gallery-item h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; opacity: .8; }
+  .phone-frame {
+    width: 320px; height: 540px; border: 10px solid #1a1a1a; border-radius: 28px;
+    overflow: hidden; background: #eef2f1;
+  }
+  .phone-frame iframe { width: 100%; height: 100%; border: none; }
 </style>
 </head>
 <body>
@@ -98,6 +107,30 @@
     <p class="status" id="status"></p>
     <div class="widget-slot">
       <div class="musai-safety-widget" id="live-widget" data-country="FR"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>위젯 형태 한눈에 보기</h2>
+    <p class="section-note">
+      삽입 위치에 따라 세 가지 레이아웃을 고를 수 있어요 — 일반 카드, 모바일 예약완료
+      화면용 바텀시트, 데스크톱 사이드바용 와이드(큰 마스코트 이미지 포함).
+    </p>
+    <div class="gallery">
+      <div class="gallery-item">
+        <h3>card — 일반 페이지 삽입용</h3>
+        <div class="musai-safety-widget" data-country="FR"></div>
+      </div>
+      <div class="gallery-item">
+        <h3>bottomsheet — 모바일 예약완료 화면용</h3>
+        <div class="phone-frame">
+          <iframe src="bottomsheet-demo.html" title="바텀시트 미리보기"></iframe>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <h3>wide — 데스크톱 사이드바용</h3>
+        <div class="musai-safety-widget" data-country="KH" data-layout="wide"></div>
+      </div>
     </div>
   </section>
 

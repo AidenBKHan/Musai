@@ -90,21 +90,27 @@
       API 서버 주소를 비워두면 배포 전에도 안전하게 데모 모드로 표시됩니다.
     </p>
     <div class="form-grid">
-      <label for="in-country">나라 코드 *</label>
+      <label for="in-country">목적지 국가 코드 *</label>
       <select id="in-country">
-        <option value="KR">KR — 대한민국</option>
+        <option value="FR">FR — 프랑스 (파리)</option>
+        <option value="JP">JP — 일본 (오사카)</option>
+        <option value="KH">KH — 캄보디아 (프놈펜)</option>
         <option value="US">US — United States</option>
         <option value="GB">GB — United Kingdom</option>
-        <option value="FR">FR — France</option>
         <option value="DE">DE — Germany</option>
-        <option value="JP">JP — Japan</option>
         <option value="CN">CN — China</option>
         <option value="AU">AU — Australia</option>
         <option value="CA">CA — Canada</option>
       </select>
 
       <label for="in-region">지역명 (선택)</label>
-      <input id="in-region" type="text" placeholder="예: Seoul, Jeju" value="Seoul" />
+      <input id="in-region" type="text" placeholder="예: 파리, 오사카" value="" />
+
+      <label for="in-layout">레이아웃</label>
+      <select id="in-layout">
+        <option value="card">card — 일반 페이지 삽입용 카드</option>
+        <option value="bottomsheet">bottomsheet — 바우처/예약완료 화면용 바텀시트</option>
+      </select>
 
       <label for="in-apibase">API 서버 주소 (선택)</label>
       <input id="in-apibase" type="text" placeholder="https://api.yourdomain.com" />
@@ -112,7 +118,7 @@
 
     <div class="preview-row">
       <div class="widget-slot">
-        <div class="musai-safety-widget" id="preview-widget" data-country="KR" data-region="Seoul"></div>
+        <div class="musai-safety-widget" id="preview-widget" data-country="FR"></div>
       </div>
       <div class="codepanel"><pre><code id="snippet"></code></pre></div>
     </div>
@@ -122,8 +128,9 @@
     <h2>2. 옵션 설명</h2>
     <table>
       <tr><th>속성</th><th>필수</th><th>설명</th></tr>
-      <tr><td><code class="attr">data-country</code></td><td>필수</td><td>ISO 3166-1 alpha-2 국가 코드 (예: KR, US, FR)</td></tr>
-      <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용)</td></tr>
+      <tr><td><code class="attr">data-country</code></td><td>필수</td><td>목적지 ISO 3166-1 alpha-2 국가 코드 (예: FR, JP, KH)</td></tr>
+      <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용, 비우면 백엔드 값 사용)</td></tr>
+      <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) 또는 <code class="attr">bottomsheet</code> — 바우처·예약완료 화면에 삽입할 땐 bottomsheet 권장</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
     </table>
     <p class="section-note" style="margin-top:14px;">
@@ -137,6 +144,7 @@
     (function () {
       var countryEl = document.getElementById('in-country');
       var regionEl = document.getElementById('in-region');
+      var layoutEl = document.getElementById('in-layout');
       var apiBaseEl = document.getElementById('in-apibase');
       var previewEl = document.getElementById('preview-widget');
       var snippetEl = document.getElementById('snippet');
@@ -149,6 +157,7 @@
         return {
           countryCode: countryEl.value,
           regionName: regionEl.value.trim(),
+          layout: layoutEl.value,
           apiBase: apiBaseEl.value.trim(),
         };
       }
@@ -157,6 +166,7 @@
         var p = currentParams();
         var attrs = ['data-country="' + escapeHtml(p.countryCode) + '"'];
         if (p.regionName) attrs.push('data-region="' + escapeHtml(p.regionName) + '"');
+        if (p.layout === 'bottomsheet') attrs.push('data-layout="bottomsheet"');
         attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
 
         snippetEl.textContent =
@@ -166,12 +176,14 @@
         window.MusaiWidget.renderInto(previewEl, {
           countryCode: p.countryCode,
           regionName: p.regionName || undefined,
+          layout: p.layout,
           apiBase: p.apiBase || undefined,
         });
       }
 
       countryEl.addEventListener('change', update);
       regionEl.addEventListener('input', update);
+      layoutEl.addEventListener('change', update);
       apiBaseEl.addEventListener('input', update);
       update();
     })();

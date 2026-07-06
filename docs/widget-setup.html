@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Musai 위젯 적용 가이드</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  .subtitle { opacity: .7; margin-top: 0; }
+  nav { margin: 4px 0 40px; font-size: 14px; }
+  nav a { color: inherit; }
+
+  section { margin-bottom: 48px; }
+  section + section { border-top: 1px solid rgba(127,127,127,.25); padding-top: 40px; }
+  h2 { font-size: 20px; margin: 0 0 8px; }
+  .section-note { opacity: .7; font-size: 14.5px; margin: 0 0 18px; max-width: 60ch; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 12px 14px;
+    align-items: center;
+    margin-bottom: 20px;
+    max-width: 520px;
+  }
+  .form-grid label { font-size: 13.5px; opacity: .8; }
+  .form-grid input, .form-grid select {
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(127,127,127,.4);
+    background: transparent;
+    color: inherit;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .preview-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .widget-slot { min-width: 168px; min-height: 96px; }
+
+  .codepanel {
+    background: #0f201c;
+    color: #d8f3ec;
+    border-radius: 12px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    flex: 1 1 320px;
+    min-width: 280px;
+  }
+  .codepanel pre { margin: 0; }
+  .codepanel code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(127,127,127,.25); vertical-align: top; }
+  th { font-weight: 600; opacity: .8; }
+  code.attr {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: rgba(0,121,107,.12);
+    color: #00897b;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 12.5px;
+  }
+  a { color: #00897b; }
+</style>
+</head>
+<body>
+  <h1>위젯 적용 가이드</h1>
+  <p class="subtitle">여러분의 사이트(예: 여행 예약 사이트)에 Musai 안전지수 카드를 붙이는 방법입니다.</p>
+  <nav><a href="index.html">← 홈으로</a></nav>
+
+  <section>
+    <h2>1. 값 입력하고 스니펫 생성</h2>
+    <p class="section-note">
+      나라 코드는 필수, 지역명은 화면에만 표시되는 선택 값입니다.
+      API 서버 주소를 비워두면 배포 전에도 안전하게 데모 모드로 표시됩니다.
+    </p>
+    <div class="form-grid">
+      <label for="in-country">나라 코드 *</label>
+      <select id="in-country">
+        <option value="KR">KR — 대한민국</option>
+        <option value="US">US — United States</option>
+        <option value="GB">GB — United Kingdom</option>
+        <option value="FR">FR — France</option>
+        <option value="DE">DE — Germany</option>
+        <option value="JP">JP — Japan</option>
+        <option value="CN">CN — China</option>
+        <option value="AU">AU — Australia</option>
+        <option value="CA">CA — Canada</option>
+      </select>
+
+      <label for="in-region">지역명 (선택)</label>
+      <input id="in-region" type="text" placeholder="예: Seoul, Jeju" value="Seoul" />
+
+      <label for="in-apibase">API 서버 주소 (선택)</label>
+      <input id="in-apibase" type="text" placeholder="https://api.yourdomain.com" />
+    </div>
+
+    <div class="preview-row">
+      <div class="widget-slot">
+        <div class="musai-safety-widget" id="preview-widget" data-country="KR" data-region="Seoul"></div>
+      </div>
+      <div class="codepanel"><pre><code id="snippet"></code></pre></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 옵션 설명</h2>
+    <table>
+      <tr><th>속성</th><th>필수</th><th>설명</th></tr>
+      <tr><td><code class="attr">data-country</code></td><td>필수</td><td>ISO 3166-1 alpha-2 국가 코드 (예: KR, US, FR)</td></tr>
+      <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용)</td></tr>
+      <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
+    </table>
+    <p class="section-note" style="margin-top:14px;">
+      요청이 3초 안에 응답하지 않거나 실패해도 자동으로 데모 모드로 전환되어,
+      백엔드 상태와 무관하게 여러분의 페이지는 깨지지 않습니다.
+    </p>
+  </section>
+
+  <script src="musai-widget.js"></script>
+  <script>
+    (function () {
+      var countryEl = document.getElementById('in-country');
+      var regionEl = document.getElementById('in-region');
+      var apiBaseEl = document.getElementById('in-apibase');
+      var previewEl = document.getElementById('preview-widget');
+      var snippetEl = document.getElementById('snippet');
+
+      function escapeHtml(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function currentParams() {
+        return {
+          countryCode: countryEl.value,
+          regionName: regionEl.value.trim(),
+          apiBase: apiBaseEl.value.trim(),
+        };
+      }
+
+      function update() {
+        var p = currentParams();
+        var attrs = ['data-country="' + escapeHtml(p.countryCode) + '"'];
+        if (p.regionName) attrs.push('data-region="' + escapeHtml(p.regionName) + '"');
+        attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
+
+        snippetEl.textContent =
+          '<div class="musai-safety-widget"\n     ' + attrs.join('\n     ') + '></div>\n' +
+          '<script src="https://your-cdn.example.com/musai-widget.js" async><' + '/script>';
+
+        window.MusaiWidget.renderInto(previewEl, {
+          countryCode: p.countryCode,
+          regionName: p.regionName || undefined,
+          apiBase: p.apiBase || undefined,
+        });
+      }
+
+      countryEl.addEventListener('change', update);
+      regionEl.addEventListener('input', update);
+      apiBaseEl.addEventListener('input', update);
+      update();
+    })();
+  </script>
+</body>
+</html>

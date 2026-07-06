@@ -1,0 +1,9 @@
+# Node / backend
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/coverage/
+
+# General
+.DS_Store
+*.log

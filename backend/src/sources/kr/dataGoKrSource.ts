@@ -14,20 +14,30 @@ interface DestinationProfile {
   /** English names accepted for text search (city, country, etc). */
   aliases: string[];
   components: RiskComponent[];
-  safeHowTip: string;
+  safeHowTips: string[];
 }
 
 /**
- * Weighted risk components matching the proposal's 안전체크 지수 formula:
- * 여행경보 단계(외교부 4단계: 남색/황색/적색/흑색) · 최근 공지 · 사건사고·치안정보 ·
- * 기상·재난정보, plus an optional 실시간 이벤트 보정(대규모 시위/공항폐쇄/감염병/
- * 항공 대량결항 등) applied on top in computeSafetyCheckIndex.
+ * Weighted risk components and destination scores below are taken directly
+ * from the proposal's own tables (extracted from the source .hwp — see
+ * "안전체크 지수 산정 요소" and "MVP 대표 지역별 검증 시나리오"), not invented:
  *
- * Paris reproduces the proposal's own worked example: composite risk 28.0 →
- * safety-check index 100 − 28.0 = 72 ("유의 필요"), driven mainly by
- * pickpocketing/theft risk around tourist sites — matching the MVP demo
- * scenario described for the Paris voucher-confirmation screen. Osaka and
- * Phnom Penh are the proposal's other two MVP validation destinations.
+ *  산정 요소      가중치   Paris 위험점수  Paris 반영점수
+ *  여행경보         40%         20            8.00
+ *  최근 공지        25%         24            6.00
+ *  사건사고·치안    20%         50           10.00
+ *  기상·재난        15%         27            4.05
+ *                                  합계(종합위험점수) 28.05
+ *
+ * → 안전체크 지수 = 100 − 28.05 = 71.95 ≈ 72 ("유의 필요"), matching the
+ * proposal's own worked Paris example exactly. Osaka (84점) and Phnom Penh
+ * (52점) are the proposal's other two MVP validation destinations from the
+ * same table, but only their final scores are given there (no per-component
+ * breakdown) — the risk-component values below for those two are reverse
+ * engineered to land exactly on 84.0 and 52.0 using the real 40/25/20/15
+ * weights and each destination's qualitative risk themes from the proposal
+ * (Osaka: 세관·의약품 반입, low crime, typhoon season; Phnom Penh: 여행자제
+ * 단계, 고수익 취업 제안 사기, elevated personal-safety risk).
  */
 const DESTINATIONS: DestinationProfile[] = [
   {
@@ -36,12 +46,16 @@ const DESTINATIONS: DestinationProfile[] = [
     regionName: '파리',
     aliases: ['paris', 'france'],
     components: [
-      { label: '여행경보 단계 (남색·여행유의)', riskScore: 10, weight: 0.4 },
-      { label: '최근 공지', riskScore: 15, weight: 0.2 },
-      { label: '사건사고·치안정보 (소매치기 등)', riskScore: 60, weight: 0.25 },
-      { label: '기상·재난정보', riskScore: 40, weight: 0.15 },
+      { label: '여행경보 위험점수', riskScore: 20, weight: 0.4 },
+      { label: '최근 공지 위험점수', riskScore: 24, weight: 0.25 },
+      { label: '사건사고·치안 위험점수', riskScore: 50, weight: 0.2 },
+      { label: '기상·재난 위험점수', riskScore: 27, weight: 0.15 },
     ],
-    safeHowTip: '주요 관광지와 대중교통 이용 시 소매치기, 여권·휴대폰 분실에 유의하세요.',
+    safeHowTips: [
+      '주요 관광지·대중교통 이용 시 소매치기에 유의하세요.',
+      '여권·휴대폰 분실에 대비해 사본을 별도로 보관하세요.',
+      '군중이 밀집한 시위·집회 지역은 피해서 이동하세요.',
+    ],
   },
   {
     countryCode: 'JP',
@@ -49,12 +63,16 @@ const DESTINATIONS: DestinationProfile[] = [
     regionName: '오사카',
     aliases: ['osaka', 'japan'],
     components: [
-      { label: '여행경보 단계 (남색·여행유의)', riskScore: 8, weight: 0.4 },
-      { label: '최근 공지', riskScore: 10, weight: 0.2 },
-      { label: '사건사고·치안정보', riskScore: 15, weight: 0.25 },
-      { label: '기상·재난정보 (태풍 등)', riskScore: 35, weight: 0.15 },
+      { label: '여행경보 위험점수', riskScore: 10, weight: 0.4 },
+      { label: '최근 공지 위험점수', riskScore: 16, weight: 0.25 },
+      { label: '사건사고·치안 위험점수', riskScore: 10, weight: 0.2 },
+      { label: '기상·재난 위험점수', riskScore: 40, weight: 0.15 },
     ],
-    safeHowTip: '의약품 반입 규정과 세관 신고 대상 품목을 출국 전 확인하세요.',
+    safeHowTips: [
+      '처방전이 필요한 의약품은 반입 규정을 출국 전 확인하세요.',
+      '세관 신고 대상 품목을 미리 확인하세요.',
+      '여권·수하물 분실·도난에 대비해 사본을 보관하세요.',
+    ],
   },
   {
     countryCode: 'KH',
@@ -62,12 +80,16 @@ const DESTINATIONS: DestinationProfile[] = [
     regionName: '프놈펜',
     aliases: ['phnom penh', 'cambodia'],
     components: [
-      { label: '여행경보 단계 (황색·여행자제)', riskScore: 45, weight: 0.4 },
-      { label: '최근 공지 (고수익 취업 제안 사기 등)', riskScore: 70, weight: 0.2 },
-      { label: '사건사고·치안정보', riskScore: 55, weight: 0.25 },
-      { label: '기상·재난정보', riskScore: 20, weight: 0.15 },
+      { label: '여행경보 위험점수', riskScore: 50, weight: 0.4 },
+      { label: '최근 공지 위험점수', riskScore: 56, weight: 0.25 },
+      { label: '사건사고·치안 위험점수', riskScore: 55, weight: 0.2 },
+      { label: '기상·재난 위험점수', riskScore: 20, weight: 0.15 },
     ],
-    safeHowTip: '고수익 해외 취업 제안과 여권 보관 요구에 유의하고, 재외공관 연락처를 미리 확인하세요.',
+    safeHowTips: [
+      '고수익 해외 취업 제안은 사실 확인 없이 응하지 마세요.',
+      '여권은 본인이 직접 보관하고 타인에게 맡기지 마세요.',
+      '출국 전 재외공관 연락처를 미리 확인해두세요.',
+    ],
   },
 ];
 
@@ -115,7 +137,7 @@ export class DataGoKrSource implements SafetySource {
       score,
       status,
       statusLabel: STATUS_LABELS[status],
-      safeHowTip: profile.safeHowTip,
+      safeHowTips: profile.safeHowTips,
       updatedAt: new Date().toISOString(),
       sourceName: this.sourceName,
       factors: components.map((c) => ({ label: c.label, score: 100 - c.riskScore })),

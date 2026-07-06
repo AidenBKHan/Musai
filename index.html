@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Musai — 글로벌 안전지수</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    line-height: 1.6;
+  }
+  h1 { margin-bottom: 4px; }
+  .subtitle { opacity: .7; margin-top: 0; }
+  nav { margin: 4px 0 40px; font-size: 14px; }
+  nav a { color: inherit; }
+
+  section { margin-bottom: 48px; }
+  section + section { border-top: 1px solid rgba(127,127,127,.25); padding-top: 40px; }
+  h2 { font-size: 20px; margin: 0 0 8px; }
+  .section-note { opacity: .7; font-size: 14.5px; margin: 0 0 18px; max-width: 60ch; }
+
+  .checker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+  select, button {
+    font: inherit;
+    font-size: 14px;
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(127,127,127,.4);
+    background: transparent;
+    color: inherit;
+  }
+  button { cursor: pointer; }
+  button.primary {
+    background: #00796b;
+    border-color: #00796b;
+    color: #fff;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .status { font-size: 13px; opacity: .7; min-height: 1.4em; }
+
+  .widget-slot { margin-top: 6px; min-height: 96px; }
+
+  .map { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .map li { display: grid; grid-template-columns: 108px 1fr; gap: 16px; font-size: 14.5px; }
+  .map code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    background: rgba(0,121,107,.12);
+    color: #00897b;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    width: fit-content;
+  }
+  .map span { opacity: .7; }
+  a { color: #00897b; }
+</style>
+</head>
+<body>
+  <h1>Musai</h1>
+  <p class="subtitle">외교부 해외안전여행 공공데이터를 여행자보험·항공권·유학·출장 플랫폼의 예약 완료 화면에 그대로 연결하는 안전정보 위젯입니다.</p>
+  <nav><a href="widget-setup.html">→ 우리 사이트에 위젯 적용하기 (통합 가이드)</a></nav>
+
+  <section>
+    <h2>바우처 확인 화면에 뜨는 안전정보 미리보기</h2>
+    <p class="section-note">
+      목적지를 고르면, 여행자가 예약 완료 후 보게 될 것과 같은 위젯이 그대로 나타납니다.
+      백엔드가 아직 공개 배포되지 않아 지금은 데모 데이터(제안서의 파리 72점 예시 포함)로 표시됩니다.
+    </p>
+    <div class="checker">
+      <select id="country-select">
+        <optgroup label="MVP 검증 목적지">
+          <option value="FR">파리, 프랑스 (FR)</option>
+          <option value="JP">오사카, 일본 (JP)</option>
+          <option value="KH">프놈펜, 캄보디아 (KH)</option>
+        </optgroup>
+        <optgroup label="기타 (샘플 데이터)">
+          <option value="US">United States (US)</option>
+          <option value="GB">United Kingdom (GB)</option>
+          <option value="DE">Germany (DE)</option>
+          <option value="CN">China (CN)</option>
+          <option value="AU">Australia (AU)</option>
+          <option value="CA">Canada (CA)</option>
+        </optgroup>
+      </select>
+      <button class="primary" id="check-btn">확인하기</button>
+      <button id="locate-btn">내 위치로 자동 감지</button>
+    </div>
+    <p class="status" id="status"></p>
+    <div class="widget-slot">
+      <div class="musai-safety-widget" id="live-widget" data-country="FR"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>프로젝트 구성</h2>
+    <ul class="map">
+      <li><code>app/</code> <span>Flutter 앱 + Android/iOS 홈스크린 위젯</span></li>
+      <li><code>backend/</code> <span>국가별 안전 데이터를 표준 스키마로 합치는 API</span></li>
+      <li><code>web-widget/</code> <span>이 페이지에 쓰인 임베드형 웹 위젯 소스</span></li>
+    </ul>
+    <p class="section-note" style="margin-top:14px;">외교부 해외안전여행 공공데이터 기반 · 목적지 확장 가능 설계</p>
+  </section>
+
+  <script src="musai-widget.js"></script>
+  <script>
+    (function () {
+      var select = document.getElementById('country-select');
+      var checkBtn = document.getElementById('check-btn');
+      var locateBtn = document.getElementById('locate-btn');
+      var status = document.getElementById('status');
+      var widgetEl = document.getElementById('live-widget');
+
+      var COUNTRY_NAMES = {
+        FR: 'France (파리)', JP: 'Japan (오사카)', KH: 'Cambodia (프놈펜)',
+        US: 'United States', GB: 'United Kingdom', DE: 'Germany',
+        CN: 'China', AU: 'Australia', CA: 'Canada'
+      };
+
+      function showFor(countryCode) {
+        window.MusaiWidget.renderInto(widgetEl, { countryCode: countryCode });
+      }
+
+      checkBtn.addEventListener('click', function () {
+        status.textContent = '';
+        showFor(select.value);
+      });
+
+      // Best-effort IP-based auto-detect. Not our own government data — just
+      // a convenience for defaulting the picker, with the same
+      // graceful-fallback pattern as the widget itself.
+      locateBtn.addEventListener('click', function () {
+        status.textContent = '위치 확인 중…';
+        locateBtn.disabled = true;
+        var timeout = setTimeout(function () { controller.abort(); }, 4000);
+        var controller = new AbortController();
+
+        fetch('https://ipwho.is/', { signal: controller.signal })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            var code = data && data.country_code;
+            if (!code) throw new Error('no country_code in response');
+            if (COUNTRY_NAMES[code]) {
+              select.value = code;
+              status.textContent = '감지된 위치: ' + COUNTRY_NAMES[code] + ' (' + code + ')';
+            } else {
+              status.textContent = '감지된 위치: ' + code + ' (목록에 없어 데모 점수로 표시)';
+            }
+            showFor(code);
+          })
+          .catch(function () {
+            status.textContent = '위치를 자동으로 감지하지 못했어요 — 목록에서 직접 골라주세요.';
+          })
+          .finally(function () {
+            clearTimeout(timeout);
+            locateBtn.disabled = false;
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

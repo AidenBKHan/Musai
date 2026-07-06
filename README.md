@@ -21,7 +21,7 @@ time.
 app/         Flutter app + Android/iOS home-screen widget
 backend/     TypeScript/Express API that aggregates per-country data sources
 web-widget/  Embeddable JS widget for third-party websites
-docs/        GitHub Pages demo of the web widget
+docs/        GitHub Pages source of truth (also duplicated at repo root, see below)
 ```
 
 ## App (`app/`)
@@ -92,18 +92,27 @@ clearly-labeled demo data (using the proposal's own Paris/Osaka/Phnom Penh
 examples) if `data-api-base` is omitted or the request fails/times out. See
 `web-widget/README.md` for all options.
 
-## GitHub Pages site (`docs/`)
+## GitHub Pages site
 
-- `docs/index.html` — the project homepage: pick a country (or auto-detect
-  by IP) to see the widget render live, in demo mode until a backend is
-  deployed.
-- `docs/widget-setup.html` — integration guide for a third-party site
-  embedding the widget (e.g. a travel booking site): fill in country/region/
-  API base and it generates the exact snippet to paste, with a live preview.
+`index.html`, `widget-setup.html`, and `musai-widget.js` are duplicated at
+the repo root (in addition to `docs/`) so the site works no matter which
+folder Settings → Pages is pointed at — root or `/docs` — without needing
+that dropdown fixed first. `.nojekyll` at the root disables Jekyll
+processing so GitHub serves these files as-is instead of auto-rendering
+`README.md`. Keep the root copies and `docs/` copies in sync until there's a
+build step; `docs/` remains the source of truth to edit.
 
-Requires **Settings → Pages → Source: Deploy from a branch → Branch: `main`,
-folder `/docs`** (a one-time setting only the repo owner can flip). Once
-enabled it's reachable at `https://<owner>.github.io/<repo>/`.
+- `index.html` / `docs/index.html` — the project homepage: pick a
+  destination (or auto-detect by IP) to see the widget render live, in demo
+  mode until a backend is deployed.
+- `widget-setup.html` / `docs/widget-setup.html` — integration guide for a
+  travel/insurance/study-abroad platform embedding the widget: fill in
+  destination/region/layout/API base and it generates the exact snippet to
+  paste, with a live preview.
+
+Pages must still be enabled once by the repo owner at **Settings → Pages →
+Source: Deploy from a branch → Branch: `main`** (root or `/docs`, either
+works now). Once enabled it's reachable at `https://<owner>.github.io/<repo>/`.
 
 ## Secrets
 

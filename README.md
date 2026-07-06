@@ -8,8 +8,10 @@ normalized score.
 ## Structure
 
 ```
-app/       Flutter app + Android/iOS home-screen widget
-backend/   TypeScript/Express API that aggregates per-country data sources
+app/         Flutter app + Android/iOS home-screen widget
+backend/     TypeScript/Express API that aggregates per-country data sources
+web-widget/  Embeddable JS widget for third-party websites
+docs/        GitHub Pages demo of the web widget
 ```
 
 ## App (`app/`)
@@ -52,6 +54,28 @@ npm run dev
 
 Adding a new country: implement `SafetySource`, register it in
 `src/sources/registry.ts` ahead of the placeholder fallback.
+
+## Web widget (`web-widget/`)
+
+A dependency-free JS embed any external website can drop in to show a Musai
+safety-index card:
+
+```html
+<div class="musai-safety-widget" data-country="KR" data-region="Seoul"
+     data-api-base="https://your-musai-backend.example.com"></div>
+<script src="https://your-cdn.example.com/musai-widget.js" async></script>
+```
+
+Falls back to clearly-labeled demo data if `data-api-base` is omitted or the
+request fails/times out. See `web-widget/README.md` for all options.
+
+## GitHub Pages demo (`docs/`)
+
+`docs/index.html` embeds the widget live and doubles as a project landing
+page. To actually serve it, the repo owner needs to flip one setting I can't
+reach via API: **Settings → Pages → Source: Deploy from a branch → Branch:
+`main`, folder `/docs`**. Once enabled it's reachable at
+`https://<owner>.github.io/<repo>/`.
 
 ## Secrets
 

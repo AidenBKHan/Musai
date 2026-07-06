@@ -15,6 +15,11 @@
  *     with a dismiss button, matching the mobile mockup
  *   - "wide" — horizontal panel with the large mascot illustration, for a
  *     desktop sidebar placement (matches the desktop mockup)
+ *   - "bubble" — a small fixed round button (mascot + score badge) anchored
+ *     to a corner of the viewport, matching how a chat widget stays out of
+ *     the way until the visitor wants it. Clicking it expands into the full
+ *     bottomsheet view; the bottomsheet's close button collapses it back
+ *     into the bubble instead of removing it.
  *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
@@ -162,7 +167,23 @@
       '.feedback span{font-size:11.5px;color:#6b7a75;}' +
       '.feedback .btns{display:flex;gap:6px;}' +
       '.fbtn{width:26px;height:26px;border-radius:50%;border:1px solid #e2e8e6;background:#fff;cursor:pointer;font-size:12px;}' +
-      '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}'
+      '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}' +
+      '.bubble{position:fixed;right:18px;bottom:18px;z-index:2147483000;width:60px;height:60px;' +
+      'border-radius:50%;border:none;padding:0;cursor:pointer;background:#fff;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,.25);font-family:system-ui,-apple-system,sans-serif;}' +
+      '.bubble-avatar{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;}' +
+      '.bubble-score{position:absolute;right:-4px;bottom:-4px;min-width:22px;height:22px;padding:0 4px;' +
+      'border-radius:11px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;' +
+      'justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}'
+    );
+  }
+
+  function bubbleMarkup(data, color) {
+    return (
+      '<button class="bubble" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
+      '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
+      '</button>'
     );
   }
 
@@ -179,7 +200,13 @@
 
   function bindInteractiveBits(root, el) {
     var closeBtn = root.querySelector('.close');
-    if (closeBtn) closeBtn.addEventListener('click', function () { el.style.display = 'none'; });
+    if (closeBtn) closeBtn.addEventListener('click', function () {
+      if (el.__musaiExpandedFromBubble) {
+        render(el, el.__musaiData, el.__musaiLocation, 'bubble');
+      } else {
+        el.style.display = 'none';
+      }
+    });
 
     var fbtns = root.querySelectorAll('.fbtn');
     for (var i = 0; i < fbtns.length; i++) {
@@ -235,6 +262,22 @@
 
   function render(el, data, location, layout) {
     var shadow = el.shadowRoot || el.attachShadow({ mode: 'open' });
+    el.__musaiData = data;
+    el.__musaiLocation = location;
+
+    if (layout === 'bubble') {
+      var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
+      shadow.innerHTML = '<style>' + css() + '</style>' + bubbleMarkup(data, color);
+      var bubbleBtn = shadow.querySelector('.bubble');
+      if (bubbleBtn) {
+        bubbleBtn.addEventListener('click', function () {
+          el.__musaiExpandedFromBubble = true;
+          render(el, data, location, 'bottomsheet');
+        });
+      }
+      return;
+    }
+
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
@@ -251,7 +294,8 @@
     }
     var regionName = params.regionName;
     var apiBase = params.apiBase;
-    var layout = (params.layout === 'bottomsheet' || params.layout === 'wide') ? params.layout : 'card';
+    var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1 };
+    var layout = VALID_LAYOUTS[params.layout] ? params.layout : 'card';
 
     var showDemo = function () {
       var demo = demoDataFor(countryCode, regionName);

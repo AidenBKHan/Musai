@@ -82,15 +82,22 @@ drop into its own booking-confirmation flow:
 <div class="musai-safety-widget" data-country="FR" data-region="파리"
      data-layout="bottomsheet"
      data-api-base="https://your-musai-backend.example.com"></div>
-<script src="https://your-cdn.example.com/musai-widget.js" async></script>
+<script src="https://aidenbkhan.github.io/musai/musai-widget.js" async></script>
 ```
 
-`data-layout` is `card` (default, compact) or `bottomsheet` (full-width,
+The mascot image isn't a separate file — it's base64-embedded inside
+`musai-widget.js` itself, so copying just the `<div>` without pointing
+`script src` at somewhere that actually serves the real file (like the
+GitHub Pages URL above, once Pages is enabled) means nothing renders, image
+included.
+
+`data-layout` is `card` (default, compact), `bottomsheet` (full-width,
 anchored to the bottom of the viewport, with a dismiss button — matching the
-proposal's mobile/tablet voucher-confirmation mockups). Falls back to
-clearly-labeled demo data (using the proposal's own Paris/Osaka/Phnom Penh
-examples) if `data-api-base` is omitted or the request fails/times out. See
-`web-widget/README.md` for all options.
+proposal's mobile voucher-confirmation mockup), or `wide` (horizontal, large
+mascot illustration — matching the proposal's desktop sidebar mockup). Falls
+back to clearly-labeled demo data (using the proposal's own Paris/Osaka/Phnom
+Penh examples) if `data-api-base` is omitted or the request fails/times out.
+See `web-widget/README.md` for all options.
 
 ## GitHub Pages site
 

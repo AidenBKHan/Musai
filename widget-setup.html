@@ -88,6 +88,8 @@
     <p class="section-note">
       나라 코드는 필수, 지역명은 화면에만 표시되는 선택 값입니다.
       API 서버 주소를 비워두면 배포 전에도 안전하게 데모 모드로 표시됩니다.
+      마스코트 이미지는 별도 파일이 아니라 <code class="attr">musai-widget.js</code> 안에 내장되어 있어서,
+      아래 스니펫의 <code class="attr">script src</code>만 실제로 접근 가능한 주소로 두면 이미지까지 그대로 따라옵니다.
     </p>
     <div class="form-grid">
       <label for="in-country">목적지 국가 코드 *</label>
@@ -110,6 +112,7 @@
       <select id="in-layout">
         <option value="card">card — 일반 페이지 삽입용 카드</option>
         <option value="bottomsheet">bottomsheet — 바우처/예약완료 화면용 바텀시트</option>
+        <option value="wide">wide — 데스크톱 사이드바용 큰 이미지 가로형</option>
       </select>
 
       <label for="in-apibase">API 서버 주소 (선택)</label>
@@ -130,7 +133,7 @@
       <tr><th>속성</th><th>필수</th><th>설명</th></tr>
       <tr><td><code class="attr">data-country</code></td><td>필수</td><td>목적지 ISO 3166-1 alpha-2 국가 코드 (예: FR, JP, KH)</td></tr>
       <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용, 비우면 백엔드 값 사용)</td></tr>
-      <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) 또는 <code class="attr">bottomsheet</code> — 바우처·예약완료 화면에 삽입할 땐 bottomsheet 권장</td></tr>
+      <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) · <code class="attr">bottomsheet</code>(바우처·예약완료 화면용) · <code class="attr">wide</code>(데스크톱 사이드바용, 큰 마스코트 이미지 포함)</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
     </table>
     <p class="section-note" style="margin-top:14px;">
@@ -166,12 +169,12 @@
         var p = currentParams();
         var attrs = ['data-country="' + escapeHtml(p.countryCode) + '"'];
         if (p.regionName) attrs.push('data-region="' + escapeHtml(p.regionName) + '"');
-        if (p.layout === 'bottomsheet') attrs.push('data-layout="bottomsheet"');
+        if (p.layout !== 'card') attrs.push('data-layout="' + p.layout + '"');
         attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
 
         snippetEl.textContent =
           '<div class="musai-safety-widget"\n     ' + attrs.join('\n     ') + '></div>\n' +
-          '<script src="https://your-cdn.example.com/musai-widget.js" async><' + '/script>';
+          '<script src="https://aidenbkhan.github.io/musai/musai-widget.js" async><' + '/script>';
 
         window.MusaiWidget.renderInto(previewEl, {
           countryCode: p.countryCode,

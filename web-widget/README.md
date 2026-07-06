@@ -25,7 +25,7 @@ element is picked up independently.
 |-------------------|----------|-------------------------------------------------------------------------------------------|
 | `data-country`    | yes      | Destination's ISO 3166-1 alpha-2 country code (e.g. `FR`, `JP`, `KH`)                      |
 | `data-region`     | no       | Region/city label shown above the score (display only; falls back to the backend's value) |
-| `data-layout`     | no       | `card` (default, compact) or `bottomsheet` (full-width, bottom-anchored, with a close button) |
+| `data-layout`     | no       | `card` (default, compact) · `bottomsheet` (full-width, bottom-anchored, close button) · `wide` (horizontal, large mascot illustration — for a desktop sidebar) |
 | `data-api-base`   | no       | Base URL of a deployed `backend/` instance. Omit to force demo mode.                       |
 
 ### Demo mode

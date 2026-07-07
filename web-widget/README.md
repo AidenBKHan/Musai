@@ -44,6 +44,21 @@ bottomsheet's close button collapses them back to their original shape
 hiding the widget entirely. A directly-configured `bottomsheet` can opt
 into the same collapse-instead-of-hide behavior via `data-close-to`.
 
+### Dismissing the widget
+
+Every layout has its own ✕ — `card`/`wide`/`bottomsheet` in the top-right
+corner, `bubble`/`banner` as a small badge on the icon itself (clicking it
+doesn't trigger the expand). `bubble`/`banner`'s own ✕ always hides
+outright; it's a separate action from clicking the icon to expand.
+
+`card`, `bottomsheet`, and `wide` also show a "don't show again this
+week" checkbox next to the feedback row. Checking it before closing
+snoozes *every* Musai widget on the site (not just that one instance)
+for 7 days via `localStorage` — a visitor dismissing it is asking to be
+left alone for a while, not just to shrink one destination's card. A
+fresh `renderInto()` call (including the automatic data-attribute scan
+on page load) checks this and skips rendering entirely while snoozed.
+
 ### Demo mode
 
 If `data-api-base` is omitted, or the request fails or times out (3s), the

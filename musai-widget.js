@@ -88,6 +88,7 @@
       feedbackHelpful: '도움이 됨',
       feedbackNotHelpful: '도움이 안 됨',
       feedbackThanks: '피드백을 보내주셔서 감사합니다 (데모)',
+      dontShowWeek: '이번 주는 다시 보지 않기',
       demoSuffix: ' (데모)',
       bannerCta: '확인해 보세요',
       demoSourceName: '데모 모드 (실시간 API 미연결)',
@@ -112,6 +113,7 @@
       feedbackHelpful: 'Helpful',
       feedbackNotHelpful: 'Not helpful',
       feedbackThanks: 'Thanks for your feedback (demo)',
+      dontShowWeek: "Don't show again this week",
       demoSuffix: ' (demo)',
       bannerCta: 'Check it out',
       demoSourceName: 'Demo mode (live API not connected)',
@@ -131,6 +133,28 @@
     if (explicit === 'ko' || explicit === 'en') return explicit;
     var nav = (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage)) || 'en';
     return nav.toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
+  }
+
+  // "Don't show again this week" is one snooze shared by every widget on
+  // the page/site — a visitor who dismisses it isn't asking to hide just
+  // one destination's card, they're asking Musai to leave them alone for
+  // a while. localStorage access is wrapped since some embeds may run
+  // where it's unavailable (privacy modes, sandboxed iframes).
+  var SNOOZE_KEY = 'musai-widget-snoozed-until';
+
+  function isSnoozed() {
+    try {
+      var until = parseInt(localStorage.getItem(SNOOZE_KEY), 10);
+      return !!until && Date.now() < until;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function snoozeForDays(days) {
+    try {
+      localStorage.setItem(SNOOZE_KEY, String(Date.now() + days * 24 * 60 * 60 * 1000));
+    } catch (e) { /* ignore — worst case the widget just doesn't remember */ }
   }
 
   // Small circular crop of the proposal's own "무사(MUSA)" mascot artwork.
@@ -288,8 +312,8 @@
       // content placement) — not a big chunky box — so content is spread
       // across columns in one row instead of stacked in one, keeping the
       // overall shape genuinely elongated.
-      '.widget.wide{max-width:980px;min-width:640px;width:100%;display:flex;flex-direction:column;' +
-      'padding:0;overflow:hidden;box-sizing:border-box;}' +
+      '.widget.wide{position:relative;max-width:980px;min-width:640px;width:100%;display:flex;' +
+      'flex-direction:column;padding:0;overflow:hidden;box-sizing:border-box;}' +
       '.wide-row{flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px 8px;}' +
       '.wide-mascot{flex:none;width:120px;align-self:stretch;height:auto;object-fit:contain;' +
       'object-position:center top;background:#c8c9cd;display:block;}' +
@@ -350,6 +374,11 @@
       '.feedback .btns{display:flex;gap:6px;}' +
       '.fbtn{width:26px;height:26px;border-radius:50%;border:1px solid #e2e8e6;background:#fff;cursor:pointer;font-size:12px;}' +
       '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}' +
+      '.snooze-row{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7a75;' +
+      'margin:8px 0 0;cursor:pointer;}' +
+      '.snooze-row input{margin:0;}' +
+      '.wide-close{position:absolute;top:8px;right:10px;}' +
+      '.wide-snooze{font-size:9.5px;margin-top:4px;}' +
       // "--s" is a scale factor set inline per-instance from data-size (see
       // sizeScale()); every bubble/banner dimension below is calc()-derived
       // from it so any size stays internally proportioned and never clips
@@ -363,18 +392,33 @@
       'border-radius:999px;color:#fff;font-size:calc(11px * var(--s,1));font-weight:700;display:flex;' +
       'align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fff;' +
       'box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
-      '.banner{width:100%;max-width:calc(400px * var(--s,1));display:flex;align-items:center;' +
-      'gap:calc(12px * var(--s,1));text-align:left;box-sizing:border-box;' +
+      '.bubble-close{position:absolute;top:calc(-4px * var(--s,1));right:calc(-4px * var(--s,1));' +
+      'width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));border-radius:50%;background:#fff;' +
+      'border:1px solid #e2e8e6;color:#6b7a75;font-size:calc(11px * var(--s,1));cursor:pointer;padding:0;' +
+      'display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
+      '.banner{position:relative;width:100%;max-width:calc(400px * var(--s,1));display:flex;' +
+      'align-items:center;gap:calc(12px * var(--s,1));text-align:left;box-sizing:border-box;' +
       'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;' +
       'border:1.5px solid #f6d9a8;border-radius:calc(16px * var(--s,1));' +
       'padding:calc(10px * var(--s,1)) calc(14px * var(--s,1));cursor:pointer;}' +
+      '.banner-close{position:absolute;top:calc(6px * var(--s,1));right:calc(8px * var(--s,1));' +
+      'background:rgba(255,255,255,.7);border:none;border-radius:50%;' +
+      'width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));color:#6b7a75;' +
+      'font-size:calc(12px * var(--s,1));cursor:pointer;padding:0;display:flex;align-items:center;' +
+      'justify-content:center;}' +
       // Fixed top/bottom stretches the bar edge-to-edge, but the content
       // group itself should stay a compact, centered cluster (like a
       // cookie-consent bar) rather than clumping at the left edge of a
       // now much-wider row.
+      // "justify-content:center" alone did nothing here: .banner-textwrap's
+      // flex:1 was growing to fill nearly the whole edge-to-edge bar
+      // (leaving no free space to center *into*), so the cluster still
+      // hugged the left edge. Un-grow it so the cluster becomes a compact
+      // block first, then centering it actually has something to do.
       '.banner.fixed-top,.banner.fixed-bottom{position:fixed;left:0;right:0;max-width:none;' +
       'width:100%;justify-content:center;border-radius:0;border-left:none;border-right:none;' +
       'z-index:2147483000;box-sizing:border-box;}' +
+      '.banner.fixed-top .banner-textwrap,.banner.fixed-bottom .banner-textwrap{flex:none;max-width:60vw;}' +
       '.banner.fixed-top{top:0;border-top:none;}' +
       '.banner.fixed-bottom{bottom:0;border-bottom:none;}' +
       '.banner-avatarwrap{position:relative;flex:none;width:calc(52px * var(--s,1));' +
@@ -396,13 +440,17 @@
     );
   }
 
+  // Not a <button> — it hosts a real <button> (the dismiss X) inside it,
+  // and nested interactive elements aren't valid HTML, so the outer
+  // "click to expand" surface is a div with its own role/keyboard support.
   function bubbleMarkup(data, color, lang) {
     var S = STRINGS[lang];
     return (
-      '<button class="bubble" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
+      '<div class="bubble" role="button" tabindex="0" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
-      '</button>'
+      '<button class="bubble-close" aria-label="' + S.close + '">✕</button>' +
+      '</div>'
     );
   }
 
@@ -415,7 +463,7 @@
   function bannerMarkup(data, location, lang) {
     var S = STRINGS[lang];
     return (
-      '<button class="banner" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
+      '<div class="banner" role="button" tabindex="0" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<span class="banner-avatarwrap">' +
       '<img class="banner-avatar" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
       '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
@@ -424,7 +472,8 @@
       '<span class="banner-title">' + S.bannerTitle(location) + '</span>' +
       '<span class="banner-cta">' + S.bannerCta + ' <span class="banner-chevron">›</span></span>' +
       '</span>' +
-      '</button>'
+      '<button class="banner-close" aria-label="' + S.close + '">✕</button>' +
+      '</div>'
     );
   }
 
@@ -443,6 +492,15 @@
     var S = STRINGS[lang];
     var closeBtn = root.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', function () {
+      // Checking "don't show again this week" is a stronger signal than
+      // whatever collapse-to-bubble/banner behavior was configured — the
+      // visitor is asking to be left alone, not to shrink to an icon.
+      var snoozeCheck = root.querySelector('.snooze-check');
+      if (snoozeCheck && snoozeCheck.checked) {
+        snoozeForDays(7);
+        el.style.display = 'none';
+        return;
+      }
       if (el.__musaiCollapsedOrigin) {
         render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize, el.__musaiLang);
       } else {
@@ -467,9 +525,8 @@
     }
   }
 
-  function bodyMarkup(data, location, layout, lang) {
+  function bodyMarkup(data, location, lang) {
     var S = STRINGS[lang];
-    var isSheet = layout === 'bottomsheet';
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
     var label = data.statusLabel || S.statusLabels[data.status] || data.status;
     var headline = S.headline(location, data.contextLabel, data.score);
@@ -477,7 +534,7 @@
       '<div class="head">' +
       '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<div class="headtext"><p class="title">' + S.title + '</p><p class="subtitle">' + S.subtitle + '</p></div>' +
-      (isSheet ? '<button class="close" aria-label="' + S.close + '">✕</button>' : '') +
+      '<button class="close" aria-label="' + S.close + '">✕</button>' +
       '</div>' +
       '<div class="scorebox">' +
       gaugeSvg(data.score, color) +
@@ -494,6 +551,7 @@
       '</div>' +
       '<div class="feedback"><span>' + S.feedbackQuestion + '</span>' +
       '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
+      '<label class="snooze-row"><input type="checkbox" class="snooze-check" />' + S.dontShowWeek + '</label>' +
       '<p class="src">' + data.sourceName + '</p>'
     );
   }
@@ -534,8 +592,10 @@
       '</div>' +
       '<div class="feedback wide-feedback"><span>' + S.feedbackQuestionShort + '</span>' +
       '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
+      '<label class="snooze-row wide-snooze"><input type="checkbox" class="snooze-check" />' + S.dontShowWeek + '</label>' +
       '</div>' +
       '</div>' +
+      '<button class="close wide-close" aria-label="' + S.close + '">✕</button>' +
       '<p class="src wide-src">' + data.sourceName + '</p>'
     );
   }
@@ -577,16 +637,35 @@
         } else if (position === 'top' || position === 'bottom') {
           collapsedBtn.classList.add('fixed-' + position);
         }
-        collapsedBtn.addEventListener('click', function () {
+        var expand = function () {
           el.__musaiCollapsedOrigin = layout;
           render(el, data, location, 'bottomsheet', position, size, lang);
+        };
+        collapsedBtn.addEventListener('click', expand);
+        // A real <button> gets Enter/Space activation for free; this is a
+        // div (see the comment on bubbleMarkup/bannerMarkup for why), so
+        // role="button" alone doesn't make keyboard activation happen.
+        collapsedBtn.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            expand();
+          }
+        });
+      }
+      // The dismiss X sits inside the expand-click surface, so its own
+      // click must not bubble up and trigger the expand too.
+      var innerCloseBtn = shadow.querySelector(layout === 'bubble' ? '.bubble-close' : '.banner-close');
+      if (innerCloseBtn) {
+        innerCloseBtn.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          el.style.display = 'none';
         });
       }
       return;
     }
 
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
-    var content = layout === 'wide' ? wideBodyMarkup(data, location, lang) : bodyMarkup(data, location, layout, lang);
+    var content = layout === 'wide' ? wideBodyMarkup(data, location, lang) : bodyMarkup(data, location, lang);
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
       '<div class="widget' + extraClass + '">' + content + '</div>';
@@ -604,6 +683,13 @@
     // collapse back to) hides the host element outright; an explicit
     // re-render request means "show it," so undo that regardless of layout.
     el.style.display = '';
+    // A "don't show again this week" dismissal applies site-wide, so skip
+    // rendering entirely (no fetch, no content) rather than showing it and
+    // relying on the visitor to close it again.
+    if (isSnoozed()) {
+      el.style.display = 'none';
+      return Promise.resolve();
+    }
     var regionName = params.regionName;
     var apiBase = params.apiBase;
     var lang = resolveLang(params.lang);

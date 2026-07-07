@@ -135,25 +135,28 @@
     return nav.toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
   }
 
-  // "Don't show again this week" is one snooze shared by every widget on
-  // the page/site — a visitor who dismisses it isn't asking to hide just
-  // one destination's card, they're asking Musai to leave them alone for
-  // a while. localStorage access is wrapped since some embeds may run
-  // where it's unavailable (privacy modes, sandboxed iframes).
-  var SNOOZE_KEY = 'musai-widget-snoozed-until';
+  // "Don't show again this week" is scoped to one destination/layout, not
+  // every widget on the page/site — dismissing the Paris banner shouldn't
+  // also hide a Cambodia bubble elsewhere. Keyed by country+layout+region
+  // (not DOM position) so it's still remembered across reloads/navigation
+  // within the site. localStorage access is wrapped since some embeds may
+  // run where it's unavailable (privacy modes, sandboxed iframes).
+  function snoozeKeyFor(countryCode, layout, regionName) {
+    return 'musai-widget-snoozed:' + countryCode.toUpperCase() + ':' + layout + ':' + (regionName || '');
+  }
 
-  function isSnoozed() {
+  function isSnoozed(key) {
     try {
-      var until = parseInt(localStorage.getItem(SNOOZE_KEY), 10);
+      var until = parseInt(localStorage.getItem(key), 10);
       return !!until && Date.now() < until;
     } catch (e) {
       return false;
     }
   }
 
-  function snoozeForDays(days) {
+  function snoozeForDays(key, days) {
     try {
-      localStorage.setItem(SNOOZE_KEY, String(Date.now() + days * 24 * 60 * 60 * 1000));
+      localStorage.setItem(key, String(Date.now() + days * 24 * 60 * 60 * 1000));
     } catch (e) { /* ignore — worst case the widget just doesn't remember */ }
   }
 
@@ -506,8 +509,8 @@
       // whatever collapse-to-bubble/banner behavior was configured — the
       // visitor is asking to be left alone, not to shrink to an icon.
       var snoozeCheck = root.querySelector('.snooze-check');
-      if (snoozeCheck && snoozeCheck.checked) {
-        snoozeForDays(7);
+      if (snoozeCheck && snoozeCheck.checked && el.__musaiSnoozeKey) {
+        snoozeForDays(el.__musaiSnoozeKey, 7);
         el.style.display = 'none';
         return;
       }
@@ -693,13 +696,6 @@
     // collapse back to) hides the host element outright; an explicit
     // re-render request means "show it," so undo that regardless of layout.
     el.style.display = '';
-    // A "don't show again this week" dismissal applies site-wide, so skip
-    // rendering entirely (no fetch, no content) rather than showing it and
-    // relying on the visitor to close it again.
-    if (isSnoozed()) {
-      el.style.display = 'none';
-      return Promise.resolve();
-    }
     var regionName = params.regionName;
     var apiBase = params.apiBase;
     var lang = resolveLang(params.lang);
@@ -710,6 +706,17 @@
       : undefined;
     var size = SIZE_SCALE[params.size] ? params.size : undefined;
     var closeTo = (params.closeTo === 'bubble' || params.closeTo === 'banner') ? params.closeTo : 'hide';
+
+    // A "don't show again this week" dismissal is scoped to this specific
+    // destination+layout, so skip rendering entirely (no fetch, no
+    // content) rather than showing it and relying on the visitor to
+    // close it again.
+    var snoozeKey = snoozeKeyFor(countryCode, layout, regionName);
+    el.__musaiSnoozeKey = snoozeKey;
+    if (isSnoozed(snoozeKey)) {
+      el.style.display = 'none';
+      return Promise.resolve();
+    }
 
     // Deciding what a close button does is a fresh-configuration concern,
     // not a runtime one: only set it here, for a layout being rendered

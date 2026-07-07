@@ -53,11 +53,12 @@ outright; it's a separate action from clicking the icon to expand.
 
 `card`, `bottomsheet`, and `wide` also show a "don't show again this
 week" checkbox next to the feedback row. Checking it before closing
-snoozes *every* Musai widget on the site (not just that one instance)
-for 7 days via `localStorage` — a visitor dismissing it is asking to be
-left alone for a while, not just to shrink one destination's card. A
-fresh `renderInto()` call (including the automatic data-attribute scan
-on page load) checks this and skips rendering entirely while snoozed.
+snoozes that specific destination+layout (keyed by
+`data-country`/`data-layout`/`data-region`, not DOM position) for 7 days
+via `localStorage` — dismissing the Paris banner doesn't hide a Cambodia
+bubble elsewhere on the same page. A fresh `renderInto()` call (including
+the automatic data-attribute scan on page load) checks this and skips
+rendering entirely while that destination+layout stays snoozed.
 
 ### Demo mode
 

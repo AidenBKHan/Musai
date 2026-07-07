@@ -35,6 +35,7 @@ repo) or your own hosted copy.
 | `data-position`   | no       | `bubble`: which viewport corner it's fixed to — `bottom-right` (default) · `bottom-left` · `top-right` · `top-left`. `banner`: `inline` (default, sits wherever the host page puts the `<div>`) · `top`/`bottom` (sticks as a full-width bar fixed to that edge, like a cookie-consent bar). Ignored by other layouts. |
 | `data-size`       | no       | `bubble`/`banner` only — `sm` · `md` (default) · `lg`. Every dimension scales together from one factor, so any size stays internally proportioned without clipping or overlap. |
 | `data-close-to`   | no       | Only meaningful when `bottomsheet` is requested directly (not one already reached by expanding a `bubble`/`banner`, which always collapse back to themselves regardless of this) — `hide` (default, close button hides the widget outright) · `bubble`/`banner` (close button collapses it into that shape instead) |
+| `data-lang`       | no       | `ko` · `en`. Without it, follows the visitor's own device/browser language (`navigator.language`) — not their IP or geographic location — defaulting to English for anything that isn't Korean. All UI chrome text and demo-mode data switch languages accordingly. |
 | `data-api-base`   | no       | Base URL of a deployed `backend/` instance. Omit to force demo mode.                       |
 
 `bubble` and `banner` both expand into `bottomsheet` on click, and the
@@ -49,6 +50,12 @@ If `data-api-base` is omitted, or the request fails or times out (3s), the
 widget renders clearly-labeled placeholder data — using the same worked
 examples as the backend's MVP destinations (Paris/Osaka/Phnom Penh) — instead
 of a broken element, safe to embed even before a backend is deployed publicly.
+
+Demo-mode data is fully bilingual (`data-lang`/device language switches
+`countryName`/`regionName`/`contextLabel`/`riskTags`/`safeHowTips` too, not
+just the UI chrome). A live `data-api-base` response is not translated by
+the widget itself yet — that's the backend's job once it grows its own
+`lang` support.
 
 ## Hosting the script
 

@@ -166,28 +166,39 @@
       // across columns in one row instead of stacked in one, keeping the
       // overall shape genuinely elongated.
       '.widget.wide{max-width:980px;min-width:640px;width:100%;display:flex;flex-direction:column;' +
-      'padding:0;overflow:hidden;}' +
+      'padding:0;overflow:hidden;box-sizing:border-box;}' +
       '.wide-row{flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px 8px;}' +
       '.wide-mascot{flex:none;width:120px;align-self:stretch;height:auto;object-fit:contain;' +
       'object-position:center top;background:#c8c9cd;display:block;}' +
       '.wide-col{min-width:0;}' +
+      '.wide-scorewrap{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0;}' +
       '.wide-col.wide-score{flex:none;}' +
-      '.wide-col.wide-headline{flex:1 1 170px;min-width:0;}' +
+      '.wide-col.wide-headline{flex:1;min-width:0;}' +
       '.wide-title{font-size:11px;color:#6b7a75;margin:0 0 2px;}' +
-      '.wide-col.wide-headline .headline{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;' +
-      '-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
       '.wide-col.wide-tags{flex:1 1 150px;min-width:0;}' +
       '.wide-col.wide-tags .tags{margin:0;}' +
-      '.wide-col.wide-tips{flex:2 1 220px;min-width:0;}' +
-      '.wide-tips{list-style:none;margin:0;padding:0;display:grid;gap:5px;}' +
-      '.wide-tips li{display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.3;min-width:0;}' +
-      '.wide-tips li span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      // Full tip text, not truncated — it wraps across lines instead of
+      // being hidden behind a hover-only tooltip, so all three Safe-How
+      // items always show what they say.
+      '.wide-col.wide-tips{flex:2 1 260px;min-width:0;}' +
+      '.wide-tips{list-style:none;margin:0;padding:0;display:grid;gap:6px;}' +
+      '.wide-tips li{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.35;min-width:0;}' +
       '.wide-col.wide-actions{flex:1 1 140px;min-width:0;display:flex;flex-direction:column;gap:6px;}' +
       '.wide-actionrow{display:flex;gap:6px;}' +
       '.wide-iconbtn{flex:1;font-size:15px;padding:6px 4px;text-align:center;}' +
       '.wide-feedback{border-top:none;padding-top:0;}' +
       '.wide-feedback span{font-size:10.5px;}' +
       '.wide-src{padding:0 18px 10px;margin:0;}' +
+      // Below 640px there just isn't room for five columns in a row — the
+      // proposal itself doesn't cover this, so rather than clip or squeeze
+      // text into an unreadable sliver, fall back to a single column, as
+      // close to the "card" layout's shape as this content allows.
+      '@media (max-width:660px){' +
+      '.widget.wide{min-width:0;max-width:360px;}' +
+      '.wide-row{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px 8px;}' +
+      '.wide-mascot{width:100%;height:170px;align-self:auto;}' +
+      '.wide-scorewrap,.wide-col.wide-tags,.wide-col.wide-tips,.wide-col.wide-actions{flex:none;width:100%;}' +
+      '}' +
       '.head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}' +
       '.avatar{width:34px;height:34px;border-radius:50%;flex:none;}' +
       '.headtext{flex:1;min-width:0;}' +
@@ -372,16 +383,18 @@
     return (
       '<div class="wide-row">' +
       '<img class="wide-mascot" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
+      '<div class="wide-scorewrap">' +
       '<div class="wide-col wide-score">' + gaugeSvg(data.score, color, 56) + '</div>' +
       '<div class="wide-col wide-headline">' +
       '<p class="wide-title">무사이 안전정보</p>' +
       '<p class="headline">' + headline + '</p>' +
       '<span class="pill" style="background:' + color + '">' + label + '</span>' +
       '</div>' +
+      '</div>' +
       '<div class="wide-col wide-tags">' + tagsMarkup(data.riskTags) + '</div>' +
       '<div class="wide-col wide-tips">' +
       '<ol class="wide-tips">' + tips.map(function (t, i) {
-        return '<li title="' + t.text + '"><span class="num">' + (i + 1) + '</span>' +
+        return '<li><span class="num">' + (i + 1) + '</span>' +
           '<span class="icon">' + (t.icon || '') + '</span><span>' + t.text + '</span></li>';
       }).join('') + '</ol>' +
       '</div>' +

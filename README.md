@@ -93,8 +93,10 @@ included.
 
 `data-layout` is `card` (default, compact), `bottomsheet` (full-width,
 anchored to the bottom of the viewport, with a dismiss button — matching the
-proposal's mobile voucher-confirmation mockup), `wide` (horizontal, large
-mascot illustration — matching the proposal's desktop sidebar mockup),
+proposal's mobile voucher-confirmation mockup), `wide` (a long, low
+horizontal strip — mascot, gauge, headline, tags, Safe-How and actions
+spread across one row instead of stacked, for a desktop sidebar or
+below-content placement — elongated, not a scaled-up card),
 `bubble` (a small fixed round icon + score badge anchored to a viewport
 corner), or `banner` (an inline CTA bar embedded in the host page's own
 content, e.g. under a booking-confirmation receipt — matching the

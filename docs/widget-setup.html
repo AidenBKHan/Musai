@@ -43,6 +43,12 @@
     width: 100%;
     box-sizing: border-box;
   }
+  /* Keep the native dropdown popup light-on-white regardless of the page's
+     dark-mode text color — some browsers' <select> listbox background
+     stays white no matter the page theme, so "color:inherit" pulling in
+     white text (from color-scheme:light dark above) makes every option
+     invisible except whichever one the OS happens to highlight. */
+  .form-grid select { color-scheme: light; }
 
   .preview-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
   .widget-slot { min-width: 168px; min-height: 96px; }
@@ -112,7 +118,7 @@
       <select id="in-layout">
         <option value="card">card — 일반 페이지 삽입용 카드</option>
         <option value="bottomsheet">bottomsheet — 바우처/예약완료 화면용 바텀시트</option>
-        <option value="wide">wide — 데스크톱 사이드바용 큰 이미지 가로형</option>
+        <option value="wide">wide — 길게 늘어진 데스크톱 사이드바용 (뚱뚱한 박스 아님)</option>
         <option value="bubble">bubble — 화면 구석의 작은 아이콘, 클릭하면 펼쳐짐</option>
         <option value="banner">banner — 페이지 안에 놓는 CTA 배너, 클릭하면 펼쳐짐</option>
       </select>
@@ -150,7 +156,7 @@
       <tr><th>속성</th><th>필수</th><th>설명</th></tr>
       <tr><td><code class="attr">data-country</code></td><td>필수</td><td>목적지 ISO 3166-1 alpha-2 국가 코드 (예: FR, JP, KH)</td></tr>
       <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용, 비우면 백엔드 값 사용)</td></tr>
-      <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) · <code class="attr">bottomsheet</code>(바우처·예약완료 화면용) · <code class="attr">wide</code>(데스크톱 사이드바용, 큰 마스코트 이미지 포함) · <code class="attr">bubble</code>(화면 구석에 고정된 작은 아이콘, 클릭하면 바텀시트로 펼쳐짐) · <code class="attr">banner</code>(예약완료 화면 등 페이지 콘텐츠 안에 놓는 CTA 배너, 클릭하면 바텀시트로 펼쳐짐 — 제안서 목업과 동일한 형태)</td></tr>
+      <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) · <code class="attr">bottomsheet</code>(바우처·예약완료 화면용) · <code class="attr">wide</code>(데스크톱 사이드바용 — 뚱뚱한 박스가 아니라 마스코트·점수·태그·Safe-How·버튼이 한 줄에 펼쳐지는 길쭉한 형태, 최소 너비 640px) · <code class="attr">bubble</code>(화면 구석에 고정된 작은 아이콘, 클릭하면 바텀시트로 펼쳐짐) · <code class="attr">banner</code>(예약완료 화면 등 페이지 콘텐츠 안에 놓는 CTA 배너, 클릭하면 바텀시트로 펼쳐짐 — 제안서 목업과 동일한 형태)</td></tr>
       <tr><td><code class="attr">data-position</code></td><td>선택</td><td><code class="attr">bubble</code>일 때: 고정할 화면 모서리 — <code class="attr">bottom-right</code>(기본) · <code class="attr">bottom-left</code> · <code class="attr">top-right</code> · <code class="attr">top-left</code>. <code class="attr">banner</code>일 때: <code class="attr">inline</code>(기본, 페이지에 놓은 자리 그대로) · <code class="attr">top</code>/<code class="attr">bottom</code>(쿠키 동의창처럼 화면 위/아래에 고정)</td></tr>
       <tr><td><code class="attr">data-size</code></td><td>선택</td><td><code class="attr">bubble</code>/<code class="attr">banner</code>의 크기 — <code class="attr">sm</code> · <code class="attr">md</code>(기본) · <code class="attr">lg</code>. 내부 요소가 비율대로 함께 커지고 작아져서 어떤 크기든 깨지지 않습니다.</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>

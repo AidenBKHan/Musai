@@ -13,8 +13,9 @@
  *   - "card" (default) — compact, static, small circular mascot avatar
  *   - "bottomsheet" — full-width, anchored to the bottom of the viewport,
  *     with a dismiss button, matching the mobile mockup
- *   - "wide" — horizontal panel with the large mascot illustration, for a
- *     desktop sidebar placement (matches the desktop mockup)
+ *   - "wide" — a long, low horizontal strip (mascot, gauge, headline, tags,
+ *     Safe-How and actions spread across one row) for a desktop sidebar or
+ *     below-content placement — elongated, not a scaled-up card
  *   - "bubble" — a small fixed round button (mascot + score badge) anchored
  *     to a corner of the viewport, matching how a chat widget stays out of
  *     the way until the visitor wants it. Clicking it expands into the full
@@ -129,12 +130,13 @@
   }
 
   /** score/100 ring drawn with a plain SVG circle + stroke-dasharray. */
-  function gaugeSvg(score, color) {
+  function gaugeSvg(score, color, size) {
+    size = size || 76;
     var r = 30;
     var c = 2 * Math.PI * r;
     var offset = c * (1 - Math.max(0, Math.min(100, score)) / 100);
     return (
-      '<svg width="76" height="76" viewBox="0 0 76 76" class="gauge">' +
+      '<svg width="' + size + '" height="' + size + '" viewBox="0 0 76 76" class="gauge">' +
       '<circle cx="38" cy="38" r="' + r + '" fill="none" stroke="rgba(0,0,0,.08)" stroke-width="7"/>' +
       '<circle cx="38" cy="38" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="7" ' +
       'stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" ' +
@@ -152,10 +154,33 @@
       'border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 2px 16px rgba(0,0,0,.12);}' +
       '.widget.sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;max-width:640px;' +
       'margin:0 auto;border-radius:18px 18px 0 0;padding:18px 20px 22px;box-shadow:0 -6px 24px rgba(0,0,0,.25);}' +
-      '.widget.wide{max-width:660px;display:flex;flex-direction:row;align-items:stretch;padding:0;overflow:hidden;}' +
-      '.widget.wide .content{flex:1;min-width:0;padding:20px 22px;}' +
-      '.mascot-big{width:210px;flex:none;align-self:stretch;height:auto;object-fit:contain;' +
-      'background:#c8c9cd;display:block;}' +
+      // "wide" is a long, low horizontal strip (for a desktop sidebar/below-
+      // content placement) — not a big chunky box — so content is spread
+      // across columns in one row instead of stacked in one, keeping the
+      // overall shape genuinely elongated.
+      '.widget.wide{max-width:980px;min-width:640px;width:100%;display:flex;flex-direction:column;' +
+      'padding:0;overflow:hidden;}' +
+      '.wide-row{flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px 8px;}' +
+      '.wide-mascot{flex:none;width:120px;align-self:stretch;height:auto;object-fit:contain;' +
+      'object-position:center top;background:#c8c9cd;display:block;}' +
+      '.wide-col{min-width:0;}' +
+      '.wide-col.wide-score{flex:none;}' +
+      '.wide-col.wide-headline{flex:1 1 170px;min-width:0;}' +
+      '.wide-title{font-size:11px;color:#6b7a75;margin:0 0 2px;}' +
+      '.wide-col.wide-headline .headline{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;' +
+      '-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
+      '.wide-col.wide-tags{flex:1 1 150px;min-width:0;}' +
+      '.wide-col.wide-tags .tags{margin:0;}' +
+      '.wide-col.wide-tips{flex:2 1 220px;min-width:0;}' +
+      '.wide-tips{list-style:none;margin:0;padding:0;display:grid;gap:5px;}' +
+      '.wide-tips li{display:flex;align-items:center;gap:6px;font-size:12px;line-height:1.3;min-width:0;}' +
+      '.wide-tips li span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      '.wide-col.wide-actions{flex:1 1 140px;min-width:0;display:flex;flex-direction:column;gap:6px;}' +
+      '.wide-actionrow{display:flex;gap:6px;}' +
+      '.wide-iconbtn{flex:1;font-size:15px;padding:6px 4px;text-align:center;}' +
+      '.wide-feedback{border-top:none;padding-top:0;}' +
+      '.wide-feedback span{font-size:10.5px;}' +
+      '.wide-src{padding:0 18px 10px;margin:0;}' +
       '.head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}' +
       '.avatar{width:34px;height:34px;border-radius:50%;flex:none;}' +
       '.headtext{flex:1;min-width:0;}' +
@@ -295,13 +320,12 @@
 
   function bodyMarkup(data, location, layout) {
     var isSheet = layout === 'bottomsheet';
-    var isWide = layout === 'wide';
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
     var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
     var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
-    var inner =
+    return (
       '<div class="head">' +
-      (isWide ? '' : '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />') +
+      '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<div class="headtext"><p class="title">무사이 안전정보</p><p class="subtitle">여행지의 안전을 함께 지켜요</p></div>' +
       (isSheet ? '<button class="close" aria-label="닫기">✕</button>' : '') +
       '</div>' +
@@ -320,12 +344,47 @@
       '</div>' +
       '<div class="feedback"><span>💬 이 정보가 도움이 되었나요?</span>' +
       '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
-      '<p class="src">' + data.sourceName + '</p>';
+      '<p class="src">' + data.sourceName + '</p>'
+    );
+  }
 
-    if (isWide) {
-      return '<div class="content">' + inner + '</div><img class="mascot-big" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />';
-    }
-    return inner;
+  // "wide" is a long, low strip, not a scaled-up card — so its content is
+  // spread across columns in one row (mascot | gauge | headline | tags |
+  // Safe-How | actions) rather than the vertical stack every other layout
+  // uses, keeping it genuinely elongated instead of just "a bigger box".
+  function wideBodyMarkup(data, location) {
+    var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
+    var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
+    var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
+    var tips = data.safeHowTips || [];
+    return (
+      '<div class="wide-row">' +
+      '<img class="wide-mascot" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
+      '<div class="wide-col wide-score">' + gaugeSvg(data.score, color, 56) + '</div>' +
+      '<div class="wide-col wide-headline">' +
+      '<p class="wide-title">무사이 안전정보</p>' +
+      '<p class="headline">' + headline + '</p>' +
+      '<span class="pill" style="background:' + color + '">' + label + '</span>' +
+      '</div>' +
+      '<div class="wide-col wide-tags">' + tagsMarkup(data.riskTags) + '</div>' +
+      '<div class="wide-col wide-tips">' +
+      '<ol class="wide-tips">' + tips.map(function (t, i) {
+        return '<li title="' + t.text + '"><span class="num">' + (i + 1) + '</span>' +
+          '<span class="icon">' + (t.icon || '') + '</span><span>' + t.text + '</span></li>';
+      }).join('') + '</ol>' +
+      '</div>' +
+      '<div class="wide-col wide-actions">' +
+      '<div class="wide-actionrow">' +
+      '<button class="utilbtn wide-iconbtn" data-label="🏛 공관 연락처 보기" title="공관 연락처 보기">🏛</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="📞 긴급번호 저장" title="긴급번호 저장">📞</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="📄 원문 출처 확인" title="원문 출처 확인">📄</button>' +
+      '</div>' +
+      '<div class="feedback wide-feedback"><span>💬 도움이 되었나요?</span>' +
+      '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
+      '</div>' +
+      '</div>' +
+      '<p class="src wide-src">' + data.sourceName + '</p>'
+    );
   }
 
   // data-position corners for "bubble" (a fixed viewport-anchored icon).
@@ -373,9 +432,10 @@
     }
 
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
+    var content = layout === 'wide' ? wideBodyMarkup(data, location) : bodyMarkup(data, location, layout);
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
-      '<div class="widget' + extraClass + '">' + bodyMarkup(data, location, layout) + '</div>';
+      '<div class="widget' + extraClass + '">' + content + '</div>';
     bindInteractiveBits(shadow, el);
   }
 

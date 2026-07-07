@@ -17,8 +17,9 @@
  *   - "card" (default) — compact, static, small circular mascot avatar
  *   - "bottomsheet" — full-width, anchored to the bottom of the viewport,
  *     with a dismiss button, matching the mobile mockup
- *   - "wide" — horizontal panel with the large mascot illustration, for a
- *     desktop sidebar placement (matches the desktop mockup)
+ *   - "wide" — a long, low horizontal strip (mascot, gauge, headline, tags,
+ *     Safe-How and actions spread across one row) for a desktop sidebar or
+ *     below-content placement — elongated, not a scaled-up card
  *   - "bubble" — a small fixed round button (mascot + score badge) anchored
  *     to a corner of the viewport, matching how a chat widget stays out of
  *     the way until the visitor wants it. Clicking it expands into the full
@@ -449,6 +450,10 @@
       console.warn('musai-widget: renderInto requires countryCode', el);
       return;
     }
+    // A previous bottomsheet's close button (with no bubble/banner to
+    // collapse back to) hides the host element outright; an explicit
+    // re-render request means "show it," so undo that regardless of layout.
+    el.style.display = '';
     var regionName = params.regionName;
     var apiBase = params.apiBase;
     var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };

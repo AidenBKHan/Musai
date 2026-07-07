@@ -446,6 +446,10 @@
       console.warn('musai-widget: renderInto requires countryCode', el);
       return;
     }
+    // A previous bottomsheet's close button (with no bubble/banner to
+    // collapse back to) hides the host element outright; an explicit
+    // re-render request means "show it," so undo that regardless of layout.
+    el.style.display = '';
     var regionName = params.regionName;
     var apiBase = params.apiBase;
     var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };

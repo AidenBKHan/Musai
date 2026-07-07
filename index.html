@@ -39,14 +39,14 @@
     background: transparent;
     color: inherit;
   }
-  /* Force the native dropdown popup to render light-on-white: with
-     color-scheme:light dark above, "color:inherit" pulls in the page's
-     dark-mode text color (white), but some browsers' <select> popup list
-     keeps a light/white background regardless — making every option
-     invisible (white-on-white) except whichever one the OS happens to
-     highlight. Scoping color-scheme back to light for just the control
-     keeps its popup legible no matter the page theme. */
-  select { color-scheme: light; }
+  /* The native option-list popup's background isn't ours to style — it
+     follows color-scheme, not our "background" above — so on a dark-mode
+     visitor "color:inherit" (white, from the page's dark text) sits on a
+     popup that color-scheme:light forces light, making every option
+     invisible. Pin an explicit light background + dark text on the select
+     itself too (not just the popup), so the closed control and its popup
+     both stay legible regardless of the visitor's OS theme. */
+  select { color-scheme: light; color: #14231f; background: #fff; }
   button { cursor: pointer; }
   button.primary {
     background: #00796b;

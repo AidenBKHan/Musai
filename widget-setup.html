@@ -43,12 +43,14 @@
     width: 100%;
     box-sizing: border-box;
   }
-  /* Keep the native dropdown popup light-on-white regardless of the page's
-     dark-mode text color — some browsers' <select> listbox background
-     stays white no matter the page theme, so "color:inherit" pulling in
-     white text (from color-scheme:light dark above) makes every option
-     invisible except whichever one the OS happens to highlight. */
-  .form-grid select { color-scheme: light; }
+  /* The native option-list popup's background isn't ours to style — it
+     follows color-scheme, not our "background" above — so on a dark-mode
+     visitor "color:inherit" (white, from the page's dark text) sits on a
+     popup that color-scheme:light forces light, making every option
+     invisible. Pin an explicit light background + dark text on the select
+     itself too (not just the popup), so the closed control and its popup
+     both stay legible regardless of the visitor's OS theme. */
+  .form-grid select { color-scheme: light; color: #14231f; background: #fff; }
 
   .preview-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
   .widget-slot { min-width: 168px; min-height: 96px; }

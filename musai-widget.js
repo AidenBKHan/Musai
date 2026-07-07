@@ -238,8 +238,13 @@
       'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;' +
       'border:1.5px solid #f6d9a8;border-radius:calc(16px * var(--s,1));' +
       'padding:calc(10px * var(--s,1)) calc(14px * var(--s,1));cursor:pointer;}' +
+      // Fixed top/bottom stretches the bar edge-to-edge, but the content
+      // group itself should stay a compact, centered cluster (like a
+      // cookie-consent bar) rather than clumping at the left edge of a
+      // now much-wider row.
       '.banner.fixed-top,.banner.fixed-bottom{position:fixed;left:0;right:0;max-width:none;' +
-      'width:100%;border-radius:0;border-left:none;border-right:none;z-index:2147483000;box-sizing:border-box;}' +
+      'width:100%;justify-content:center;border-radius:0;border-left:none;border-right:none;' +
+      'z-index:2147483000;box-sizing:border-box;}' +
       '.banner.fixed-top{top:0;border-top:none;}' +
       '.banner.fixed-bottom{bottom:0;border-bottom:none;}' +
       '.banner-avatarwrap{position:relative;flex:none;width:calc(52px * var(--s,1));' +

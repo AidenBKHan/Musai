@@ -117,6 +117,21 @@
         <option value="banner">banner — 페이지 안에 놓는 CTA 배너, 클릭하면 펼쳐짐</option>
       </select>
 
+      <label for="in-position" id="in-position-label">위치</label>
+      <select id="in-position">
+        <option value="bottom-right">bottom-right</option>
+        <option value="bottom-left">bottom-left</option>
+        <option value="top-right">top-right</option>
+        <option value="top-left">top-left</option>
+      </select>
+
+      <label for="in-size">크기</label>
+      <select id="in-size">
+        <option value="sm">sm — 작게</option>
+        <option value="md" selected>md — 기본</option>
+        <option value="lg">lg — 크게</option>
+      </select>
+
       <label for="in-apibase">API 서버 주소 (선택)</label>
       <input id="in-apibase" type="text" placeholder="https://api.yourdomain.com" />
     </div>
@@ -136,6 +151,8 @@
       <tr><td><code class="attr">data-country</code></td><td>필수</td><td>목적지 ISO 3166-1 alpha-2 국가 코드 (예: FR, JP, KH)</td></tr>
       <tr><td><code class="attr">data-region</code></td><td>선택</td><td>화면에 표시할 지역/도시명 (표시 전용, 비우면 백엔드 값 사용)</td></tr>
       <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) · <code class="attr">bottomsheet</code>(바우처·예약완료 화면용) · <code class="attr">wide</code>(데스크톱 사이드바용, 큰 마스코트 이미지 포함) · <code class="attr">bubble</code>(화면 구석에 고정된 작은 아이콘, 클릭하면 바텀시트로 펼쳐짐) · <code class="attr">banner</code>(예약완료 화면 등 페이지 콘텐츠 안에 놓는 CTA 배너, 클릭하면 바텀시트로 펼쳐짐 — 제안서 목업과 동일한 형태)</td></tr>
+      <tr><td><code class="attr">data-position</code></td><td>선택</td><td><code class="attr">bubble</code>일 때: 고정할 화면 모서리 — <code class="attr">bottom-right</code>(기본) · <code class="attr">bottom-left</code> · <code class="attr">top-right</code> · <code class="attr">top-left</code>. <code class="attr">banner</code>일 때: <code class="attr">inline</code>(기본, 페이지에 놓은 자리 그대로) · <code class="attr">top</code>/<code class="attr">bottom</code>(쿠키 동의창처럼 화면 위/아래에 고정)</td></tr>
+      <tr><td><code class="attr">data-size</code></td><td>선택</td><td><code class="attr">bubble</code>/<code class="attr">banner</code>의 크기 — <code class="attr">sm</code> · <code class="attr">md</code>(기본) · <code class="attr">lg</code>. 내부 요소가 비율대로 함께 커지고 작아져서 어떤 크기든 깨지지 않습니다.</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
     </table>
     <p class="section-note" style="margin-top:14px;">
@@ -150,28 +167,68 @@
       var countryEl = document.getElementById('in-country');
       var regionEl = document.getElementById('in-region');
       var layoutEl = document.getElementById('in-layout');
+      var positionEl = document.getElementById('in-position');
+      var positionLabelEl = document.getElementById('in-position-label');
+      var sizeEl = document.getElementById('in-size');
       var apiBaseEl = document.getElementById('in-apibase');
       var previewEl = document.getElementById('preview-widget');
       var snippetEl = document.getElementById('snippet');
+
+      var POSITION_OPTIONS = {
+        bubble: [
+          ['bottom-right', 'bottom-right (기본)'],
+          ['bottom-left', 'bottom-left'],
+          ['top-right', 'top-right'],
+          ['top-left', 'top-left'],
+        ],
+        banner: [
+          ['inline', 'inline (기본, 페이지 안에 그대로)'],
+          ['top', 'top (화면 위에 고정)'],
+          ['bottom', 'bottom (화면 아래에 고정)'],
+        ],
+      };
 
       function escapeHtml(s) {
         return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       }
 
+      // position/size only mean something for bubble & banner — hide the
+      // controls otherwise, and repopulate the position dropdown with the
+      // right option set (viewport corners vs inline/top/bottom) per layout.
+      function syncOptionVisibility() {
+        var opts = POSITION_OPTIONS[layoutEl.value];
+        var show = !!opts;
+        [positionEl, positionLabelEl, sizeEl, sizeEl.previousElementSibling].forEach(function (el) {
+          el.style.display = show ? '' : 'none';
+        });
+        if (opts) {
+          var currentVal = positionEl.value;
+          positionEl.innerHTML = opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('');
+          var stillValid = opts.some(function (o) { return o[0] === currentVal; });
+          positionEl.value = stillValid ? currentVal : opts[0][0];
+        }
+      }
+
       function currentParams() {
+        var opts = POSITION_OPTIONS[layoutEl.value];
         return {
           countryCode: countryEl.value,
           regionName: regionEl.value.trim(),
           layout: layoutEl.value,
+          position: opts ? positionEl.value : undefined,
+          size: opts ? sizeEl.value : undefined,
           apiBase: apiBaseEl.value.trim(),
         };
       }
 
       function update() {
+        syncOptionVisibility();
         var p = currentParams();
         var attrs = ['data-country="' + escapeHtml(p.countryCode) + '"'];
         if (p.regionName) attrs.push('data-region="' + escapeHtml(p.regionName) + '"');
         if (p.layout !== 'card') attrs.push('data-layout="' + p.layout + '"');
+        if (p.position && p.position !== 'bottom-right' && p.position !== 'inline') attrs.push('data-position="' + p.position + '"');
+        if (p.size && p.size !== 'md') attrs.push('data-size="' + p.size + '"');
         attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
 
         snippetEl.textContent =
@@ -182,6 +239,8 @@
           countryCode: p.countryCode,
           regionName: p.regionName || undefined,
           layout: p.layout,
+          position: p.position,
+          size: p.size,
           apiBase: p.apiBase || undefined,
         });
       }
@@ -189,6 +248,8 @@
       countryEl.addEventListener('change', update);
       regionEl.addEventListener('input', update);
       layoutEl.addEventListener('change', update);
+      positionEl.addEventListener('change', update);
+      sizeEl.addEventListener('change', update);
       apiBaseEl.addEventListener('input', update);
       update();
     })();

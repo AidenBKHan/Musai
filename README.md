@@ -102,8 +102,11 @@ proposal's own [그림4] mockup exactly, arrow included). Both `bubble` and
 `banner` expand into the `bottomsheet` view on click and collapse back to
 themselves on close, instead of always showing the full card — for
 embedding Musai as a supplementary, non-intrusive add-on rather than a
-page-dominating card. Falls back to clearly-labeled demo data (using the
-proposal's own Paris/Osaka/Phnom Penh examples) if `data-api-base` is
+page-dominating card. Both also take `data-position` (which corner for
+`bubble`; `inline`/`top`/`bottom` for `banner`) and `data-size`
+(`sm`/`md`/`lg`, every dimension scaling together so nothing clips at any
+size). Falls back to clearly-labeled demo data (using the proposal's own
+Paris/Osaka/Phnom Penh examples) if `data-api-base` is
 omitted or the request fails/times out. See `web-widget/README.md` for all
 options.
 

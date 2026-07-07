@@ -30,6 +30,17 @@
  *     Clicking it expands into the bottomsheet the same way "bubble" does,
  *     and collapses back into the banner on close.
  *
+ * `data-position` only applies to "bubble" and "banner":
+ *   - "bubble": which viewport corner it's fixed to — "bottom-right"
+ *     (default), "bottom-left", "top-right", "top-left".
+ *   - "banner": "inline" (default) to sit wherever the host page puts the
+ *     `<div>`, or "top"/"bottom" to instead stick as a full-width bar fixed
+ *     to that edge of the viewport (like a cookie-consent bar).
+ *
+ * `data-size` also only applies to "bubble" and "banner" — "sm", "md"
+ * (default), or "lg". Every dimension scales together from one factor, so
+ * any size stays internally proportioned without clipping or overlap.
+ *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
  * breaking the host page.
@@ -177,27 +188,44 @@
       '.feedback .btns{display:flex;gap:6px;}' +
       '.fbtn{width:26px;height:26px;border-radius:50%;border:1px solid #e2e8e6;background:#fff;cursor:pointer;font-size:12px;}' +
       '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}' +
-      '.bubble{position:fixed;right:18px;bottom:18px;z-index:2147483000;width:60px;height:60px;' +
+      // "--s" is a scale factor set inline per-instance from data-size (see
+      // sizeScale()); every bubble/banner dimension below is calc()-derived
+      // from it so any size stays internally proportioned and never clips
+      // or overlaps, instead of needing separate sm/md/lg rule sets.
+      '.bubble{position:fixed;z-index:2147483000;width:calc(60px * var(--s,1));height:calc(60px * var(--s,1));' +
       'border-radius:50%;border:none;padding:0;cursor:pointer;background:#fff;' +
       'box-shadow:0 4px 16px rgba(0,0,0,.25);font-family:system-ui,-apple-system,sans-serif;}' +
       '.bubble-avatar{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;}' +
-      '.bubble-score{position:absolute;right:-4px;bottom:-4px;min-width:22px;height:22px;padding:0 4px;' +
-      'border-radius:11px;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;' +
-      'justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
-      '.banner{width:100%;max-width:400px;display:flex;align-items:center;gap:12px;text-align:left;' +
-      'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;border:1.5px solid #f6d9a8;' +
-      'border-radius:16px;padding:12px 14px;cursor:pointer;}' +
-      '.banner-avatarwrap{position:relative;flex:none;}' +
-      '.banner-avatar{width:44px;height:44px;border-radius:50%;display:block;}' +
-      '.banner-score{position:absolute;right:-4px;bottom:-4px;min-width:20px;height:20px;padding:0 4px;' +
-      'border-radius:10px;background:#f2921a;color:#fff;font-size:10px;font-weight:700;display:flex;' +
-      'align-items:center;justify-content:center;border:2px solid #fdf3ec;}' +
-      '.banner-textwrap{display:flex;flex-direction:column;gap:3px;min-width:0;}' +
-      '.banner-title{font-size:13.5px;font-weight:700;color:#182430;overflow:hidden;text-overflow:ellipsis;' +
-      'white-space:nowrap;}' +
-      '.banner-cta{font-size:12px;font-weight:600;color:#f2921a;display:flex;align-items:center;gap:4px;}' +
-      '.banner-chevron{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;' +
-      'border-radius:50%;background:#f2921a;color:#fff;font-size:11px;line-height:1;}'
+      '.bubble-score{position:absolute;right:calc(-4px * var(--s,1));bottom:calc(-4px * var(--s,1));' +
+      'min-width:calc(22px * var(--s,1));height:calc(22px * var(--s,1));padding:0 calc(4px * var(--s,1));' +
+      'border-radius:999px;color:#fff;font-size:calc(11px * var(--s,1));font-weight:700;display:flex;' +
+      'align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fff;' +
+      'box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
+      '.banner{width:100%;max-width:calc(400px * var(--s,1));display:flex;align-items:center;' +
+      'gap:calc(12px * var(--s,1));text-align:left;box-sizing:border-box;' +
+      'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;' +
+      'border:1.5px solid #f6d9a8;border-radius:calc(16px * var(--s,1));' +
+      'padding:calc(10px * var(--s,1)) calc(14px * var(--s,1));cursor:pointer;}' +
+      '.banner.fixed-top,.banner.fixed-bottom{position:fixed;left:0;right:0;max-width:none;' +
+      'width:100%;border-radius:0;border-left:none;border-right:none;z-index:2147483000;box-sizing:border-box;}' +
+      '.banner.fixed-top{top:0;border-top:none;}' +
+      '.banner.fixed-bottom{bottom:0;border-bottom:none;}' +
+      '.banner-avatarwrap{position:relative;flex:none;width:calc(52px * var(--s,1));' +
+      'height:calc(72px * var(--s,1));background:#c8c9cd;border-radius:calc(10px * var(--s,1));' +
+      'overflow:hidden;}' +
+      '.banner-avatar{width:100%;height:100%;display:block;object-fit:contain;object-position:center top;}' +
+      '.banner-score{position:absolute;left:calc(-4px * var(--s,1));top:calc(-4px * var(--s,1));' +
+      'min-width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));padding:0 calc(4px * var(--s,1));' +
+      'border-radius:999px;background:#f2921a;color:#fff;font-size:calc(10px * var(--s,1));font-weight:700;' +
+      'display:flex;align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fdf3ec;}' +
+      '.banner-textwrap{display:flex;flex-direction:column;gap:calc(3px * var(--s,1));min-width:0;flex:1;}' +
+      '.banner-title{font-size:calc(13.5px * var(--s,1));font-weight:700;color:#182430;overflow:hidden;' +
+      'text-overflow:ellipsis;white-space:nowrap;}' +
+      '.banner-cta{font-size:calc(12px * var(--s,1));font-weight:600;color:#f2921a;display:flex;' +
+      'align-items:center;gap:calc(4px * var(--s,1));white-space:nowrap;}' +
+      '.banner-chevron{display:inline-flex;align-items:center;justify-content:center;' +
+      'width:calc(16px * var(--s,1));height:calc(16px * var(--s,1));border-radius:50%;background:#f2921a;' +
+      'color:#fff;font-size:calc(11px * var(--s,1));line-height:1;flex:none;}'
     );
   }
 
@@ -212,12 +240,15 @@
 
   // Matches the proposal's own [그림4] mockup: an inline CTA banner sitting
   // in the host page's content flow (e.g. under a booking-confirmation
-  // receipt), rather than a fixed floating icon like "bubble".
+  // receipt), rather than a fixed floating icon like "bubble". Uses the same
+  // full-body mascot art (on its matching studio-gray backdrop) as "wide",
+  // not just the small round face crop, since a strip this size has room to
+  // show the whole character.
   function bannerMarkup(data, location) {
     return (
       '<button class="banner" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
       '<span class="banner-avatarwrap">' +
-      '<img class="banner-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
+      '<img class="banner-avatar" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
       '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
       '</span>' +
       '<span class="banner-textwrap">' +
@@ -243,7 +274,7 @@
     var closeBtn = root.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', function () {
       if (el.__musaiCollapsedOrigin) {
-        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin);
+        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize);
       } else {
         el.style.display = 'none';
       }
@@ -301,10 +332,28 @@
     return inner;
   }
 
-  function render(el, data, location, layout) {
+  // data-position corners for "bubble" (a fixed viewport-anchored icon).
+  var BUBBLE_POSITIONS = {
+    'bottom-right': { bottom: '18px', right: '18px' },
+    'bottom-left': { bottom: '18px', left: '18px' },
+    'top-right': { top: '18px', right: '18px' },
+    'top-left': { top: '18px', left: '18px' },
+  };
+  // data-size multipliers, consumed as the "--s" CSS variable so every
+  // bubble/banner dimension scales together via calc() instead of needing
+  // separate rule sets per size.
+  var SIZE_SCALE = { sm: 0.8, md: 1, lg: 1.3 };
+
+  function sizeScale(size) {
+    return SIZE_SCALE[size] || SIZE_SCALE.md;
+  }
+
+  function render(el, data, location, layout, position, size) {
     var shadow = el.shadowRoot || el.attachShadow({ mode: 'open' });
     el.__musaiData = data;
     el.__musaiLocation = location;
+    el.__musaiPosition = position;
+    el.__musaiSize = size;
 
     if (layout === 'bubble' || layout === 'banner') {
       var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
@@ -312,9 +361,16 @@
       shadow.innerHTML = '<style>' + css() + '</style>' + collapsedHtml;
       var collapsedBtn = shadow.querySelector(layout === 'bubble' ? '.bubble' : '.banner');
       if (collapsedBtn) {
+        collapsedBtn.style.setProperty('--s', String(sizeScale(size)));
+        if (layout === 'bubble') {
+          var corner = BUBBLE_POSITIONS[position] || BUBBLE_POSITIONS['bottom-right'];
+          for (var side in corner) collapsedBtn.style[side] = corner[side];
+        } else if (position === 'top' || position === 'bottom') {
+          collapsedBtn.classList.add('fixed-' + position);
+        }
         collapsedBtn.addEventListener('click', function () {
           el.__musaiCollapsedOrigin = layout;
-          render(el, data, location, 'bottomsheet');
+          render(el, data, location, 'bottomsheet', position, size);
         });
       }
       return;
@@ -338,6 +394,10 @@
     var apiBase = params.apiBase;
     var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };
     var layout = VALID_LAYOUTS[params.layout] ? params.layout : 'card';
+    var position = BUBBLE_POSITIONS[params.position] ? params.position
+      : (params.position === 'top' || params.position === 'bottom') ? params.position
+      : undefined;
+    var size = SIZE_SCALE[params.size] ? params.size : undefined;
 
     var showDemo = function () {
       var demo = demoDataFor(countryCode, regionName);
@@ -352,7 +412,7 @@
         riskTags: demo.riskTags,
         safeHowTips: demo.safeHowTips,
         sourceName: '데모 모드 (실시간 API 미연결)',
-      }, loc, layout);
+      }, loc, layout, position, size);
     };
 
     if (!apiBase) {
@@ -365,7 +425,7 @@
         var loc = (regionName || data.regionName)
           ? (regionName || data.regionName) + ', ' + countryCode.toUpperCase()
           : countryCode.toUpperCase();
-        render(el, data, loc, layout);
+        render(el, data, loc, layout, position, size);
       })
       .catch(showDemo);
   }
@@ -376,6 +436,8 @@
       regionName: el.getAttribute('data-region'),
       apiBase: el.getAttribute('data-api-base'),
       layout: el.getAttribute('data-layout'),
+      position: el.getAttribute('data-position'),
+      size: el.getAttribute('data-size'),
     };
   }
 

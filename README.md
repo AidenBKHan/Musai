@@ -112,6 +112,13 @@ Paris/Osaka/Phnom Penh examples) if `data-api-base` is
 omitted or the request fails/times out. See `web-widget/README.md` for all
 options.
 
+The widget is bilingual (한국어/English): `data-lang="ko"`/`"en"` overrides,
+otherwise it follows the visitor's own device/browser language — not their
+IP or location — defaulting to English for anything that isn't Korean.
+Demo-mode data (destination names, tags, Safe-How tips) is fully
+translated; a live backend's own response text isn't translated by the
+widget yet.
+
 ## GitHub Pages site
 
 `index.html`, `widget-setup.html`, and `musai-widget.js` are duplicated at

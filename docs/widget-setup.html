@@ -147,6 +147,13 @@
         <option value="bubble">버블로 접힘</option>
       </select>
 
+      <label for="in-lang">언어</label>
+      <select id="in-lang">
+        <option value="auto">auto — 방문자 기기 언어 자동 감지</option>
+        <option value="ko">ko — 한국어 고정</option>
+        <option value="en">en — English 고정</option>
+      </select>
+
       <label for="in-apibase">API 서버 주소 (선택)</label>
       <input id="in-apibase" type="text" placeholder="https://api.yourdomain.com" />
     </div>
@@ -169,6 +176,7 @@
       <tr><td><code class="attr">data-position</code></td><td>선택</td><td><code class="attr">bubble</code>일 때: 고정할 화면 모서리 — <code class="attr">bottom-right</code>(기본) · <code class="attr">bottom-left</code> · <code class="attr">top-right</code> · <code class="attr">top-left</code>. <code class="attr">banner</code>일 때: <code class="attr">inline</code>(기본, 페이지에 놓은 자리 그대로) · <code class="attr">top</code>/<code class="attr">bottom</code>(쿠키 동의창처럼 화면 위/아래에 고정)</td></tr>
       <tr><td><code class="attr">data-size</code></td><td>선택</td><td><code class="attr">bubble</code>/<code class="attr">banner</code>의 크기 — <code class="attr">sm</code> · <code class="attr">md</code>(기본) · <code class="attr">lg</code>. 내부 요소가 비율대로 함께 커지고 작아져서 어떤 크기든 깨지지 않습니다.</td></tr>
       <tr><td><code class="attr">data-close-to</code></td><td>선택</td><td><code class="attr">bottomsheet</code>를 바로 지정했을 때만 의미가 있음(버블·배너에서 펼친 경우는 항상 자기 자신으로 접힘) — <code class="attr">hide</code>(기본, 닫기를 누르면 완전히 사라짐) · <code class="attr">banner</code>/<code class="attr">bubble</code>(닫기를 누르면 그 모양으로 접힘)</td></tr>
+      <tr><td><code class="attr">data-lang</code></td><td>선택</td><td><code class="attr">ko</code> · <code class="attr">en</code> — 생략하면 방문자 기기(브라우저)의 언어 설정을 자동 감지해서 적용하고(접속 위치·IP 아님), 한국어가 아니면 영어로 표시됩니다. 위젯 문구와 데모 데이터가 함께 바뀝니다.</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
     </table>
     <p class="section-note" style="margin-top:14px;">
@@ -188,6 +196,7 @@
       var sizeEl = document.getElementById('in-size');
       var closeToEl = document.getElementById('in-closeto');
       var closeToLabelEl = document.getElementById('in-closeto-label');
+      var langEl = document.getElementById('in-lang');
       var apiBaseEl = document.getElementById('in-apibase');
       var previewEl = document.getElementById('preview-widget');
       var snippetEl = document.getElementById('snippet');
@@ -241,6 +250,7 @@
           position: opts ? positionEl.value : undefined,
           size: opts ? sizeEl.value : undefined,
           closeTo: layoutEl.value === 'bottomsheet' ? closeToEl.value : undefined,
+          lang: langEl.value === 'auto' ? undefined : langEl.value,
           apiBase: apiBaseEl.value.trim(),
         };
       }
@@ -254,6 +264,7 @@
         if (p.position && p.position !== 'bottom-right' && p.position !== 'inline') attrs.push('data-position="' + p.position + '"');
         if (p.size && p.size !== 'md') attrs.push('data-size="' + p.size + '"');
         if (p.closeTo && p.closeTo !== 'hide') attrs.push('data-close-to="' + p.closeTo + '"');
+        if (p.lang) attrs.push('data-lang="' + p.lang + '"');
         attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
 
         snippetEl.textContent =
@@ -267,6 +278,7 @@
           position: p.position,
           size: p.size,
           closeTo: p.closeTo,
+          lang: p.lang,
           apiBase: p.apiBase || undefined,
         });
       }
@@ -275,6 +287,7 @@
       regionEl.addEventListener('input', update);
       layoutEl.addEventListener('change', update);
       positionEl.addEventListener('change', update);
+      langEl.addEventListener('change', update);
       sizeEl.addEventListener('change', update);
       closeToEl.addEventListener('change', update);
       apiBaseEl.addEventListener('input', update);

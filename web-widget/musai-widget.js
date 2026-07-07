@@ -45,18 +45,89 @@
  *   - "bubble" / "banner" — its close button collapses it into that shape
  *     instead of hiding it, as if it had been expanded from one.
  *
+ * `data-lang` is "ko" or "en" — all UI chrome text and demo-mode data
+ * switch languages accordingly. Without it, the widget follows the
+ * visitor's own device/browser language (`navigator.language`), not their
+ * IP or geographic location, defaulting to English for anything that
+ * isn't Korean. A live backend's own response text isn't translated by
+ * the widget itself yet — only demo mode is bilingual so far.
+ *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
  * breaking the host page.
  *
  * Host pages that need to re-render a widget on demand (e.g. after a user
  * picks a different destination) can call `window.MusaiWidget.renderInto(el, {
- * countryCode, regionName, apiBase, layout })` directly instead of relying
- * on the one-time data-attribute scan.
+ * countryCode, regionName, apiBase, layout, lang })` directly instead of
+ * relying on the one-time data-attribute scan.
  */
 (function () {
-  var STATUS_LABELS = { safe: '안전', caution: '유의 필요', warning: '위험', avoid: '여행 자제 권고' };
   var STATUS_COLORS = { safe: '#2e7d32', caution: '#c9930f', warning: '#d9730d', avoid: '#c62828' };
+
+  // All UI chrome text, keyed by language. Device language decides which
+  // one is used (see resolveLang()) unless a host page overrides it with
+  // data-lang. Demo-mode data (DEMO_DESTINATIONS below) is bilingual too;
+  // a live backend's own response text isn't translated by the widget —
+  // that's the backend's job once it grows lang support.
+  var STRINGS = {
+    ko: {
+      statusLabels: { safe: '안전', caution: '유의 필요', warning: '위험', avoid: '여행 자제 권고' },
+      title: '무사이 안전정보',
+      subtitle: '여행지의 안전을 함께 지켜요',
+      close: '닫기',
+      safeHowTitle: '✅ Safe-How 행동가이드',
+      embassyIcon: '🏛', embassyLabel: '공관 연락처 보기',
+      emergencyIcon: '📞', emergencyLabel: '긴급번호 저장',
+      sourceIcon: '📄', sourceLabel: '원문 출처 확인',
+      feedbackQuestion: '💬 이 정보가 도움이 되었나요?',
+      feedbackQuestionShort: '💬 도움이 되었나요?',
+      feedbackHelpful: '도움이 됨',
+      feedbackNotHelpful: '도움이 안 됨',
+      feedbackThanks: '피드백을 보내주셔서 감사합니다 (데모)',
+      demoSuffix: ' (데모)',
+      bannerCta: '확인해 보세요',
+      demoSourceName: '데모 모드 (실시간 API 미연결)',
+      demoFallbackTip: '실제 데이터 연동 전 표시되는 샘플 안내입니다.',
+      headline: function (location, contextLabel, score) {
+        return location + (contextLabel ? ' ' + contextLabel : '') + ' 안전지수 ' + score.toFixed(0) + '점';
+      },
+      bannerTitle: function (location) { return location + ' 무사이 안전정보'; },
+      ariaOpenLabel: function (score) { return '무사이 안전정보 열기 (안전지수 ' + score.toFixed(0) + '점)'; },
+    },
+    en: {
+      statusLabels: { safe: 'Safe', caution: 'Caution', warning: 'Warning', avoid: 'Avoid Travel' },
+      title: 'Musai Safety Info',
+      subtitle: 'Keeping your trip safe, together',
+      close: 'Close',
+      safeHowTitle: '✅ Safe-How Guide',
+      embassyIcon: '🏛', embassyLabel: 'Embassy Contact',
+      emergencyIcon: '📞', emergencyLabel: 'Save Emergency Number',
+      sourceIcon: '📄', sourceLabel: 'View Source',
+      feedbackQuestion: '💬 Was this information helpful?',
+      feedbackQuestionShort: '💬 Helpful?',
+      feedbackHelpful: 'Helpful',
+      feedbackNotHelpful: 'Not helpful',
+      feedbackThanks: 'Thanks for your feedback (demo)',
+      demoSuffix: ' (demo)',
+      bannerCta: 'Check it out',
+      demoSourceName: 'Demo mode (live API not connected)',
+      demoFallbackTip: 'Sample guidance shown before live data is connected.',
+      headline: function (location, contextLabel, score) {
+        return location + (contextLabel ? ' ' + contextLabel : '') + ' safety score: ' + score.toFixed(0) + '/100';
+      },
+      bannerTitle: function (location) { return location + ' Musai Safety Info'; },
+      ariaOpenLabel: function (score) { return 'Open Musai safety info (safety score ' + score.toFixed(0) + ')'; },
+    },
+  };
+
+  /** data-lang="ko"/"en" overrides; otherwise follow the device's own
+   * language setting (not IP/geographic location), defaulting to English
+   * for anything that isn't Korean. */
+  function resolveLang(explicit) {
+    if (explicit === 'ko' || explicit === 'en') return explicit;
+    var nav = (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage)) || 'en';
+    return nav.toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
+  }
 
   // Small circular crop of the proposal's own "무사(MUSA)" mascot artwork.
   var MASCOT_DATA_URI =
@@ -70,34 +141,71 @@
   // comment above DESTINATIONS in backend/src/sources/kr/dataGoKrSource.ts
   // for the risk-component breakdown, and the .hwp's own mockup images
   // ([그림2]/[그림3]/[그림4]) for the tags/tips (Paris and Phnom Penh copy is
-  // taken directly from the mockup screenshots where legible).
+  // taken directly from the mockup screenshots where legible). English
+  // copy is a translation of the same content, not independently sourced.
   var DEMO_DESTINATIONS = {
     FR: {
-      countryName: '프랑스', regionName: '파리', contextLabel: '관광지', score: 72, status: 'caution',
-      riskTags: ['소매치기', '여권 분실', '관광지 주변 범죄'],
-      safeHowTips: [
-        { icon: '🎒', text: '백팩은 앞으로 메고 지퍼를 잠그세요.' },
-        { icon: '⚠️', text: '야외 테이블 위에 스마트폰과 지갑을 올려두지 마세요.' },
-        { icon: '📔', text: '여권 원본과 사본을 분리해 보관하세요.' },
-      ],
+      score: 72, status: 'caution',
+      ko: {
+        countryName: '프랑스', regionName: '파리', contextLabel: '관광지',
+        riskTags: ['소매치기', '여권 분실', '관광지 주변 범죄'],
+        safeHowTips: [
+          { icon: '🎒', text: '백팩은 앞으로 메고 지퍼를 잠그세요.' },
+          { icon: '⚠️', text: '야외 테이블 위에 스마트폰과 지갑을 올려두지 마세요.' },
+          { icon: '📔', text: '여권 원본과 사본을 분리해 보관하세요.' },
+        ],
+      },
+      en: {
+        countryName: 'France', regionName: 'Paris', contextLabel: 'Tourist area',
+        riskTags: ['Pickpocketing', 'Passport loss', 'Crime near tourist sites'],
+        safeHowTips: [
+          { icon: '🎒', text: 'Wear your backpack on your front and keep it zipped.' },
+          { icon: '⚠️', text: "Don't leave your phone or wallet on outdoor café tables." },
+          { icon: '📔', text: 'Keep your passport and a copy of it stored separately.' },
+        ],
+      },
     },
     JP: {
-      countryName: '일본', regionName: '오사카', contextLabel: '입국 전', score: 84, status: 'caution',
-      riskTags: ['의약품 반입', '입국 유의', '여권 분실'],
-      safeHowTips: [
-        { icon: '💊', text: '처방전이 필요한 의약품은 반입 규정을 출국 전 확인하세요.' },
-        { icon: '🛃', text: '세관 신고 대상 품목을 미리 확인하세요.' },
-        { icon: '📔', text: '여권·수하물 분실·도난에 대비해 사본을 보관하세요.' },
-      ],
+      score: 84, status: 'caution',
+      ko: {
+        countryName: '일본', regionName: '오사카', contextLabel: '입국 전',
+        riskTags: ['의약품 반입', '입국 유의', '여권 분실'],
+        safeHowTips: [
+          { icon: '💊', text: '처방전이 필요한 의약품은 반입 규정을 출국 전 확인하세요.' },
+          { icon: '🛃', text: '세관 신고 대상 품목을 미리 확인하세요.' },
+          { icon: '📔', text: '여권·수하물 분실·도난에 대비해 사본을 보관하세요.' },
+        ],
+      },
+      en: {
+        countryName: 'Japan', regionName: 'Osaka', contextLabel: 'Before arrival',
+        riskTags: ['Medication import rules', 'Entry precautions', 'Passport loss'],
+        safeHowTips: [
+          { icon: '💊', text: 'Check import rules for prescription medication before you leave.' },
+          { icon: '🛃', text: 'Check in advance which items require a customs declaration.' },
+          { icon: '📔', text: 'Keep copies of your passport and baggage details in case of loss or theft.' },
+        ],
+      },
     },
     KH: {
-      countryName: '캄보디아', regionName: '프놈펜', contextLabel: '출장·장기체류', score: 52, status: 'warning',
-      riskTags: ['고수익 취업제안', '여권 보관 요구', '최신 공지 5건', '긴급 연락처'],
-      safeHowTips: [
-        { icon: '📄', text: '출국 전 회사·계약서·사업자 정보를 반드시 확인하세요.' },
-        { icon: '🔒', text: '여권 원본을 타인에게 맡기지 말고, 본인이 직접 보관하세요.' },
-        { icon: '⚠️', text: '위험 상황 발생 시 재외공관 공식 연락처로 우선 연락하세요.' },
-      ],
+      score: 52, status: 'warning',
+      ko: {
+        countryName: '캄보디아', regionName: '프놈펜', contextLabel: '출장·장기체류',
+        riskTags: ['고수익 취업제안', '여권 보관 요구', '최신 공지 5건', '긴급 연락처'],
+        safeHowTips: [
+          { icon: '📄', text: '출국 전 회사·계약서·사업자 정보를 반드시 확인하세요.' },
+          { icon: '🔒', text: '여권 원본을 타인에게 맡기지 말고, 본인이 직접 보관하세요.' },
+          { icon: '⚠️', text: '위험 상황 발생 시 재외공관 공식 연락처로 우선 연락하세요.' },
+        ],
+      },
+      en: {
+        countryName: 'Cambodia', regionName: 'Phnom Penh', contextLabel: 'Business trip / extended stay',
+        riskTags: ['High-pay job offers', 'Passport confiscation requests', '5 recent notices', 'Emergency contacts'],
+        safeHowTips: [
+          { icon: '📄', text: 'Verify the company, contract, and business registration before you leave.' },
+          { icon: '🔒', text: 'Never hand over your original passport — keep it with you at all times.' },
+          { icon: '⚠️', text: "If something goes wrong, contact the embassy's official number first." },
+        ],
+      },
     },
   };
 
@@ -108,9 +216,20 @@
     return 'avoid';
   }
 
-  function demoDataFor(countryCode, regionName) {
+  function demoDataFor(countryCode, regionName, lang) {
     var known = DEMO_DESTINATIONS[countryCode.toUpperCase()];
-    if (known) return known;
+    if (known) {
+      var localized = known[lang] || known.ko;
+      return {
+        countryName: localized.countryName,
+        regionName: localized.regionName,
+        contextLabel: localized.contextLabel,
+        score: known.score,
+        status: known.status,
+        riskTags: localized.riskTags,
+        safeHowTips: localized.safeHowTips,
+      };
+    }
     var hash = 7;
     for (var i = 0; i < countryCode.length; i++) hash = (hash * 31 + countryCode.charCodeAt(i)) % 997;
     var score = 50 + (hash % 46);
@@ -121,7 +240,7 @@
       score: score,
       status: statusFor(score),
       riskTags: [],
-      safeHowTips: [{ icon: 'ℹ️', text: '실제 데이터 연동 전 표시되는 샘플 안내입니다.' }],
+      safeHowTips: [{ icon: 'ℹ️', text: STRINGS[lang].demoFallbackTip }],
     };
   }
 
@@ -273,9 +392,10 @@
     );
   }
 
-  function bubbleMarkup(data, color) {
+  function bubbleMarkup(data, color, lang) {
+    var S = STRINGS[lang];
     return (
-      '<button class="bubble" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<button class="bubble" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
       '</button>'
@@ -288,16 +408,17 @@
   // full-body mascot art (on its matching studio-gray backdrop) as "wide",
   // not just the small round face crop, since a strip this size has room to
   // show the whole character.
-  function bannerMarkup(data, location) {
+  function bannerMarkup(data, location, lang) {
+    var S = STRINGS[lang];
     return (
-      '<button class="banner" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<button class="banner" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<span class="banner-avatarwrap">' +
       '<img class="banner-avatar" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
       '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
       '</span>' +
       '<span class="banner-textwrap">' +
-      '<span class="banner-title">' + location + ' 무사이 안전정보</span>' +
-      '<span class="banner-cta">확인해 보세요 <span class="banner-chevron">›</span></span>' +
+      '<span class="banner-title">' + S.bannerTitle(location) + '</span>' +
+      '<span class="banner-cta">' + S.bannerCta + ' <span class="banner-chevron">›</span></span>' +
       '</span>' +
       '</button>'
     );
@@ -314,11 +435,12 @@
     }).join('') + '</ol>';
   }
 
-  function bindInteractiveBits(root, el) {
+  function bindInteractiveBits(root, el, lang) {
+    var S = STRINGS[lang];
     var closeBtn = root.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', function () {
       if (el.__musaiCollapsedOrigin) {
-        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize);
+        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize, el.__musaiLang);
       } else {
         el.style.display = 'none';
       }
@@ -328,7 +450,7 @@
     for (var i = 0; i < fbtns.length; i++) {
       fbtns[i].addEventListener('click', function (ev) {
         var span = root.querySelector('.feedback span');
-        if (span) span.textContent = '피드백을 보내주셔서 감사합니다 (데모)';
+        if (span) span.textContent = S.feedbackThanks;
         ev.currentTarget.style.background = '#e6f4ea';
       });
     }
@@ -336,21 +458,22 @@
     var utilBtns = root.querySelectorAll('.utilbtn');
     for (var j = 0; j < utilBtns.length; j++) {
       utilBtns[j].addEventListener('click', function (ev) {
-        ev.currentTarget.textContent = ev.currentTarget.getAttribute('data-label') + ' (데모)';
+        ev.currentTarget.textContent = ev.currentTarget.getAttribute('data-label') + S.demoSuffix;
       });
     }
   }
 
-  function bodyMarkup(data, location, layout) {
+  function bodyMarkup(data, location, layout, lang) {
+    var S = STRINGS[lang];
     var isSheet = layout === 'bottomsheet';
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
-    var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
-    var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
+    var label = data.statusLabel || S.statusLabels[data.status] || data.status;
+    var headline = S.headline(location, data.contextLabel, data.score);
     return (
       '<div class="head">' +
       '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
-      '<div class="headtext"><p class="title">무사이 안전정보</p><p class="subtitle">여행지의 안전을 함께 지켜요</p></div>' +
-      (isSheet ? '<button class="close" aria-label="닫기">✕</button>' : '') +
+      '<div class="headtext"><p class="title">' + S.title + '</p><p class="subtitle">' + S.subtitle + '</p></div>' +
+      (isSheet ? '<button class="close" aria-label="' + S.close + '">✕</button>' : '') +
       '</div>' +
       '<div class="scorebox">' +
       gaugeSvg(data.score, color) +
@@ -358,15 +481,15 @@
       '<span class="pill" style="background:' + color + '">' + label + '</span></div>' +
       '</div>' +
       tagsMarkup(data.riskTags) +
-      '<p class="section-title">✅ Safe-How 행동가이드</p>' +
+      '<p class="section-title">' + S.safeHowTitle + '</p>' +
       tipsMarkup(data.safeHowTips) +
       '<div class="utilrow">' +
-      '<button class="utilbtn" data-label="🏛 공관 연락처 보기">🏛<br/>공관 연락처 보기</button>' +
-      '<button class="utilbtn" data-label="📞 긴급번호 저장">📞<br/>긴급번호 저장</button>' +
-      '<button class="utilbtn" data-label="📄 원문 출처 확인">📄<br/>원문 출처 확인</button>' +
+      '<button class="utilbtn" data-label="' + S.embassyIcon + ' ' + S.embassyLabel + '">' + S.embassyIcon + '<br/>' + S.embassyLabel + '</button>' +
+      '<button class="utilbtn" data-label="' + S.emergencyIcon + ' ' + S.emergencyLabel + '">' + S.emergencyIcon + '<br/>' + S.emergencyLabel + '</button>' +
+      '<button class="utilbtn" data-label="' + S.sourceIcon + ' ' + S.sourceLabel + '">' + S.sourceIcon + '<br/>' + S.sourceLabel + '</button>' +
       '</div>' +
-      '<div class="feedback"><span>💬 이 정보가 도움이 되었나요?</span>' +
-      '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
+      '<div class="feedback"><span>' + S.feedbackQuestion + '</span>' +
+      '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
       '<p class="src">' + data.sourceName + '</p>'
     );
   }
@@ -375,10 +498,11 @@
   // spread across columns in one row (mascot | gauge | headline | tags |
   // Safe-How | actions) rather than the vertical stack every other layout
   // uses, keeping it genuinely elongated instead of just "a bigger box".
-  function wideBodyMarkup(data, location) {
+  function wideBodyMarkup(data, location, lang) {
+    var S = STRINGS[lang];
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
-    var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
-    var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
+    var label = data.statusLabel || S.statusLabels[data.status] || data.status;
+    var headline = S.headline(location, data.contextLabel, data.score);
     var tips = data.safeHowTips || [];
     return (
       '<div class="wide-row">' +
@@ -386,7 +510,7 @@
       '<div class="wide-scorewrap">' +
       '<div class="wide-col wide-score">' + gaugeSvg(data.score, color, 56) + '</div>' +
       '<div class="wide-col wide-headline">' +
-      '<p class="wide-title">무사이 안전정보</p>' +
+      '<p class="wide-title">' + S.title + '</p>' +
       '<p class="headline">' + headline + '</p>' +
       '<span class="pill" style="background:' + color + '">' + label + '</span>' +
       '</div>' +
@@ -400,12 +524,12 @@
       '</div>' +
       '<div class="wide-col wide-actions">' +
       '<div class="wide-actionrow">' +
-      '<button class="utilbtn wide-iconbtn" data-label="🏛 공관 연락처 보기" title="공관 연락처 보기">🏛</button>' +
-      '<button class="utilbtn wide-iconbtn" data-label="📞 긴급번호 저장" title="긴급번호 저장">📞</button>' +
-      '<button class="utilbtn wide-iconbtn" data-label="📄 원문 출처 확인" title="원문 출처 확인">📄</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="' + S.embassyIcon + ' ' + S.embassyLabel + '" title="' + S.embassyLabel + '">' + S.embassyIcon + '</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="' + S.emergencyIcon + ' ' + S.emergencyLabel + '" title="' + S.emergencyLabel + '">' + S.emergencyIcon + '</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="' + S.sourceIcon + ' ' + S.sourceLabel + '" title="' + S.sourceLabel + '">' + S.sourceIcon + '</button>' +
       '</div>' +
-      '<div class="feedback wide-feedback"><span>💬 도움이 되었나요?</span>' +
-      '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
+      '<div class="feedback wide-feedback"><span>' + S.feedbackQuestionShort + '</span>' +
+      '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
       '</div>' +
       '</div>' +
       '<p class="src wide-src">' + data.sourceName + '</p>'
@@ -428,16 +552,17 @@
     return SIZE_SCALE[size] || SIZE_SCALE.md;
   }
 
-  function render(el, data, location, layout, position, size) {
+  function render(el, data, location, layout, position, size, lang) {
     var shadow = el.shadowRoot || el.attachShadow({ mode: 'open' });
     el.__musaiData = data;
     el.__musaiLocation = location;
     el.__musaiPosition = position;
     el.__musaiSize = size;
+    el.__musaiLang = lang;
 
     if (layout === 'bubble' || layout === 'banner') {
       var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
-      var collapsedHtml = layout === 'bubble' ? bubbleMarkup(data, color) : bannerMarkup(data, location);
+      var collapsedHtml = layout === 'bubble' ? bubbleMarkup(data, color, lang) : bannerMarkup(data, location, lang);
       shadow.innerHTML = '<style>' + css() + '</style>' + collapsedHtml;
       var collapsedBtn = shadow.querySelector(layout === 'bubble' ? '.bubble' : '.banner');
       if (collapsedBtn) {
@@ -450,18 +575,18 @@
         }
         collapsedBtn.addEventListener('click', function () {
           el.__musaiCollapsedOrigin = layout;
-          render(el, data, location, 'bottomsheet', position, size);
+          render(el, data, location, 'bottomsheet', position, size, lang);
         });
       }
       return;
     }
 
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
-    var content = layout === 'wide' ? wideBodyMarkup(data, location) : bodyMarkup(data, location, layout);
+    var content = layout === 'wide' ? wideBodyMarkup(data, location, lang) : bodyMarkup(data, location, layout, lang);
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
       '<div class="widget' + extraClass + '">' + content + '</div>';
-    bindInteractiveBits(shadow, el);
+    bindInteractiveBits(shadow, el, lang);
   }
 
   /** Renders (or re-renders) one widget element with an explicit param set. */
@@ -477,6 +602,7 @@
     el.style.display = '';
     var regionName = params.regionName;
     var apiBase = params.apiBase;
+    var lang = resolveLang(params.lang);
     var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };
     var layout = VALID_LAYOUTS[params.layout] ? params.layout : 'card';
     var position = BUBBLE_POSITIONS[params.position] ? params.position
@@ -497,19 +623,19 @@
     }
 
     var showDemo = function () {
-      var demo = demoDataFor(countryCode, regionName);
+      var demo = demoDataFor(countryCode, regionName, lang);
       var loc = (regionName || demo.regionName)
         ? (regionName || demo.regionName) + ', ' + countryCode.toUpperCase()
         : countryCode.toUpperCase();
       render(el, {
         score: demo.score,
         status: demo.status,
-        statusLabel: STATUS_LABELS[demo.status],
+        statusLabel: STRINGS[lang].statusLabels[demo.status],
         contextLabel: demo.contextLabel,
         riskTags: demo.riskTags,
         safeHowTips: demo.safeHowTips,
-        sourceName: '데모 모드 (실시간 API 미연결)',
-      }, loc, layout, position, size);
+        sourceName: STRINGS[lang].demoSourceName,
+      }, loc, layout, position, size, lang);
     };
 
     if (!apiBase) {
@@ -522,7 +648,7 @@
         var loc = (regionName || data.regionName)
           ? (regionName || data.regionName) + ', ' + countryCode.toUpperCase()
           : countryCode.toUpperCase();
-        render(el, data, loc, layout, position, size);
+        render(el, data, loc, layout, position, size, lang);
       })
       .catch(showDemo);
   }
@@ -536,6 +662,7 @@
       position: el.getAttribute('data-position'),
       size: el.getAttribute('data-size'),
       closeTo: el.getAttribute('data-close-to'),
+      lang: el.getAttribute('data-lang'),
     };
   }
 

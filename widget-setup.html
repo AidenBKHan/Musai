@@ -140,6 +140,13 @@
         <option value="lg">lg — 크게</option>
       </select>
 
+      <label for="in-closeto" id="in-closeto-label">닫기(X) 시 동작</label>
+      <select id="in-closeto">
+        <option value="hide">완전히 숨김 (기본)</option>
+        <option value="banner">배너로 접힘</option>
+        <option value="bubble">버블로 접힘</option>
+      </select>
+
       <label for="in-apibase">API 서버 주소 (선택)</label>
       <input id="in-apibase" type="text" placeholder="https://api.yourdomain.com" />
     </div>
@@ -161,6 +168,7 @@
       <tr><td><code class="attr">data-layout</code></td><td>선택</td><td><code class="attr">card</code>(기본) · <code class="attr">bottomsheet</code>(바우처·예약완료 화면용) · <code class="attr">wide</code>(데스크톱 사이드바용 — 뚱뚱한 박스가 아니라 마스코트·점수·태그·Safe-How·버튼이 한 줄에 펼쳐지는 길쭉한 형태, 최소 너비 640px) · <code class="attr">bubble</code>(화면 구석에 고정된 작은 아이콘, 클릭하면 바텀시트로 펼쳐짐) · <code class="attr">banner</code>(예약완료 화면 등 페이지 콘텐츠 안에 놓는 CTA 배너, 클릭하면 바텀시트로 펼쳐짐 — 제안서 목업과 동일한 형태)</td></tr>
       <tr><td><code class="attr">data-position</code></td><td>선택</td><td><code class="attr">bubble</code>일 때: 고정할 화면 모서리 — <code class="attr">bottom-right</code>(기본) · <code class="attr">bottom-left</code> · <code class="attr">top-right</code> · <code class="attr">top-left</code>. <code class="attr">banner</code>일 때: <code class="attr">inline</code>(기본, 페이지에 놓은 자리 그대로) · <code class="attr">top</code>/<code class="attr">bottom</code>(쿠키 동의창처럼 화면 위/아래에 고정)</td></tr>
       <tr><td><code class="attr">data-size</code></td><td>선택</td><td><code class="attr">bubble</code>/<code class="attr">banner</code>의 크기 — <code class="attr">sm</code> · <code class="attr">md</code>(기본) · <code class="attr">lg</code>. 내부 요소가 비율대로 함께 커지고 작아져서 어떤 크기든 깨지지 않습니다.</td></tr>
+      <tr><td><code class="attr">data-close-to</code></td><td>선택</td><td><code class="attr">bottomsheet</code>를 바로 지정했을 때만 의미가 있음(버블·배너에서 펼친 경우는 항상 자기 자신으로 접힘) — <code class="attr">hide</code>(기본, 닫기를 누르면 완전히 사라짐) · <code class="attr">banner</code>/<code class="attr">bubble</code>(닫기를 누르면 그 모양으로 접힘)</td></tr>
       <tr><td><code class="attr">data-api-base</code></td><td>선택</td><td>배포된 Musai 백엔드 주소. 비워두면 데모 모드로 표시</td></tr>
     </table>
     <p class="section-note" style="margin-top:14px;">
@@ -178,6 +186,8 @@
       var positionEl = document.getElementById('in-position');
       var positionLabelEl = document.getElementById('in-position-label');
       var sizeEl = document.getElementById('in-size');
+      var closeToEl = document.getElementById('in-closeto');
+      var closeToLabelEl = document.getElementById('in-closeto-label');
       var apiBaseEl = document.getElementById('in-apibase');
       var previewEl = document.getElementById('preview-widget');
       var snippetEl = document.getElementById('snippet');
@@ -215,6 +225,11 @@
           var stillValid = opts.some(function (o) { return o[0] === currentVal; });
           positionEl.value = stillValid ? currentVal : opts[0][0];
         }
+        // data-close-to only means something for a directly-configured
+        // bottomsheet — bubble/banner always collapse back to themselves,
+        // and card/wide have no close button at all.
+        var showCloseTo = layoutEl.value === 'bottomsheet';
+        [closeToEl, closeToLabelEl].forEach(function (el) { el.style.display = showCloseTo ? '' : 'none'; });
       }
 
       function currentParams() {
@@ -225,6 +240,7 @@
           layout: layoutEl.value,
           position: opts ? positionEl.value : undefined,
           size: opts ? sizeEl.value : undefined,
+          closeTo: layoutEl.value === 'bottomsheet' ? closeToEl.value : undefined,
           apiBase: apiBaseEl.value.trim(),
         };
       }
@@ -237,6 +253,7 @@
         if (p.layout !== 'card') attrs.push('data-layout="' + p.layout + '"');
         if (p.position && p.position !== 'bottom-right' && p.position !== 'inline') attrs.push('data-position="' + p.position + '"');
         if (p.size && p.size !== 'md') attrs.push('data-size="' + p.size + '"');
+        if (p.closeTo && p.closeTo !== 'hide') attrs.push('data-close-to="' + p.closeTo + '"');
         attrs.push('data-api-base="' + escapeHtml(p.apiBase || 'https://your-musai-backend.example.com') + '"');
 
         snippetEl.textContent =
@@ -249,6 +266,7 @@
           layout: p.layout,
           position: p.position,
           size: p.size,
+          closeTo: p.closeTo,
           apiBase: p.apiBase || undefined,
         });
       }
@@ -258,6 +276,7 @@
       layoutEl.addEventListener('change', update);
       positionEl.addEventListener('change', update);
       sizeEl.addEventListener('change', update);
+      closeToEl.addEventListener('change', update);
       apiBaseEl.addEventListener('input', update);
       update();
     })();

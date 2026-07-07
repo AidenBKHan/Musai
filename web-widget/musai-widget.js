@@ -38,6 +38,13 @@
  * (default), or "lg". Every dimension scales together from one factor, so
  * any size stays internally proportioned without clipping or overlap.
  *
+ * `data-close-to` only applies when "bottomsheet" is the layout requested
+ * directly (i.e. not one already reached by expanding a "bubble"/"banner" —
+ * those always collapse back to themselves regardless of this attribute):
+ *   - "hide" (default) — its close button hides the widget outright.
+ *   - "bubble" / "banner" — its close button collapses it into that shape
+ *     instead of hiding it, as if it had been expanded from one.
+ *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
  * breaking the host page.
@@ -458,6 +465,18 @@
       : (params.position === 'top' || params.position === 'bottom') ? params.position
       : undefined;
     var size = SIZE_SCALE[params.size] ? params.size : undefined;
+    var closeTo = (params.closeTo === 'bubble' || params.closeTo === 'banner') ? params.closeTo : 'hide';
+
+    // Deciding what a close button does is a fresh-configuration concern,
+    // not a runtime one: only set it here, for a layout being rendered
+    // top-level (card/bottomsheet/wide as requested directly). When the
+    // requested layout is itself "bubble"/"banner", leave this alone —
+    // expanding one into a bottomsheet sets it dynamically at click time
+    // (see render()), and re-priming it here from a stale closeTo would
+    // clobber that click-time value before the click even happens.
+    if (layout !== 'bubble' && layout !== 'banner') {
+      el.__musaiCollapsedOrigin = closeTo === 'hide' ? undefined : closeTo;
+    }
 
     var showDemo = function () {
       var demo = demoDataFor(countryCode, regionName);
@@ -498,6 +517,7 @@
       layout: el.getAttribute('data-layout'),
       position: el.getAttribute('data-position'),
       size: el.getAttribute('data-size'),
+      closeTo: el.getAttribute('data-close-to'),
     };
   }
 

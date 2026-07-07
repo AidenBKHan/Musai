@@ -34,12 +34,14 @@ repo) or your own hosted copy.
 | `data-layout`     | no       | `card` (default, compact) · `bottomsheet` (full-width, bottom-anchored, close button) · `wide` (a long, low horizontal strip — mascot, gauge, headline, tags, Safe-How and actions spread across one row, not a scaled-up card — for a desktop sidebar or below-content placement, min-width 640px) · `bubble` (small fixed round icon + score badge, anchored to a viewport corner) · `banner` (inline CTA bar embedded in the host page's own content, e.g. under a booking-confirmation receipt — matches the proposal's own mockup) |
 | `data-position`   | no       | `bubble`: which viewport corner it's fixed to — `bottom-right` (default) · `bottom-left` · `top-right` · `top-left`. `banner`: `inline` (default, sits wherever the host page puts the `<div>`) · `top`/`bottom` (sticks as a full-width bar fixed to that edge, like a cookie-consent bar). Ignored by other layouts. |
 | `data-size`       | no       | `bubble`/`banner` only — `sm` · `md` (default) · `lg`. Every dimension scales together from one factor, so any size stays internally proportioned without clipping or overlap. |
+| `data-close-to`   | no       | Only meaningful when `bottomsheet` is requested directly (not one already reached by expanding a `bubble`/`banner`, which always collapse back to themselves regardless of this) — `hide` (default, close button hides the widget outright) · `bubble`/`banner` (close button collapses it into that shape instead) |
 | `data-api-base`   | no       | Base URL of a deployed `backend/` instance. Omit to force demo mode.                       |
 
 `bubble` and `banner` both expand into `bottomsheet` on click, and the
 bottomsheet's close button collapses them back to their original shape
 (preserving whatever `data-position`/`data-size` they had) instead of
-hiding the widget entirely.
+hiding the widget entirely. A directly-configured `bottomsheet` can opt
+into the same collapse-instead-of-hide behavior via `data-close-to`.
 
 ### Demo mode
 

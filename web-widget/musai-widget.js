@@ -13,8 +13,37 @@
  *   - "card" (default) — compact, static, small circular mascot avatar
  *   - "bottomsheet" — full-width, anchored to the bottom of the viewport,
  *     with a dismiss button, matching the mobile mockup
- *   - "wide" — horizontal panel with the large mascot illustration, for a
- *     desktop sidebar placement (matches the desktop mockup)
+ *   - "wide" — a long, low horizontal strip (mascot, gauge, headline, tags,
+ *     Safe-How and actions spread across one row) for a desktop sidebar or
+ *     below-content placement — elongated, not a scaled-up card
+ *   - "bubble" — a small fixed round button (mascot + score badge) anchored
+ *     to a corner of the viewport, matching how a chat widget stays out of
+ *     the way until the visitor wants it. Clicking it expands into the full
+ *     bottomsheet view; the bottomsheet's close button collapses it back
+ *     into the bubble instead of removing it.
+ *   - "banner" — an inline CTA bar (mascot + score badge + "확인해 보세요")
+ *     sitting in the host page's own content flow, matching the proposal's
+ *     own [그림4] mockup (a strip under a booking-confirmation receipt).
+ *     Clicking it expands into the bottomsheet the same way "bubble" does,
+ *     and collapses back into the banner on close.
+ *
+ * `data-position` only applies to "bubble" and "banner":
+ *   - "bubble": which viewport corner it's fixed to — "bottom-right"
+ *     (default), "bottom-left", "top-right", "top-left".
+ *   - "banner": "inline" (default) to sit wherever the host page puts the
+ *     `<div>`, or "top"/"bottom" to instead stick as a full-width bar fixed
+ *     to that edge of the viewport (like a cookie-consent bar).
+ *
+ * `data-size` also only applies to "bubble" and "banner" — "sm", "md"
+ * (default), or "lg". Every dimension scales together from one factor, so
+ * any size stays internally proportioned without clipping or overlap.
+ *
+ * `data-close-to` only applies when "bottomsheet" is the layout requested
+ * directly (i.e. not one already reached by expanding a "bubble"/"banner" —
+ * those always collapse back to themselves regardless of this attribute):
+ *   - "hide" (default) — its close button hides the widget outright.
+ *   - "bubble" / "banner" — its close button collapses it into that shape
+ *     instead of hiding it, as if it had been expanded from one.
  *
  * `data-api-base` is optional — without it (or if the request fails/times
  * out) the widget falls back to clearly-labeled demo data instead of
@@ -108,12 +137,13 @@
   }
 
   /** score/100 ring drawn with a plain SVG circle + stroke-dasharray. */
-  function gaugeSvg(score, color) {
+  function gaugeSvg(score, color, size) {
+    size = size || 76;
     var r = 30;
     var c = 2 * Math.PI * r;
     var offset = c * (1 - Math.max(0, Math.min(100, score)) / 100);
     return (
-      '<svg width="76" height="76" viewBox="0 0 76 76" class="gauge">' +
+      '<svg width="' + size + '" height="' + size + '" viewBox="0 0 76 76" class="gauge">' +
       '<circle cx="38" cy="38" r="' + r + '" fill="none" stroke="rgba(0,0,0,.08)" stroke-width="7"/>' +
       '<circle cx="38" cy="38" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="7" ' +
       'stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + offset.toFixed(1) + '" ' +
@@ -131,10 +161,44 @@
       'border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 2px 16px rgba(0,0,0,.12);}' +
       '.widget.sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;max-width:640px;' +
       'margin:0 auto;border-radius:18px 18px 0 0;padding:18px 20px 22px;box-shadow:0 -6px 24px rgba(0,0,0,.25);}' +
-      '.widget.wide{max-width:660px;display:flex;flex-direction:row;align-items:stretch;padding:0;overflow:hidden;}' +
-      '.widget.wide .content{flex:1;min-width:0;padding:20px 22px;}' +
-      '.mascot-big{width:210px;flex:none;align-self:stretch;height:auto;object-fit:contain;' +
-      'background:#c8c9cd;display:block;}' +
+      // "wide" is a long, low horizontal strip (for a desktop sidebar/below-
+      // content placement) — not a big chunky box — so content is spread
+      // across columns in one row instead of stacked in one, keeping the
+      // overall shape genuinely elongated.
+      '.widget.wide{max-width:980px;min-width:640px;width:100%;display:flex;flex-direction:column;' +
+      'padding:0;overflow:hidden;box-sizing:border-box;}' +
+      '.wide-row{flex:1;min-width:0;display:flex;align-items:center;gap:18px;padding:14px 18px 8px;}' +
+      '.wide-mascot{flex:none;width:120px;align-self:stretch;height:auto;object-fit:contain;' +
+      'object-position:center top;background:#c8c9cd;display:block;}' +
+      '.wide-col{min-width:0;}' +
+      '.wide-scorewrap{display:flex;align-items:center;gap:10px;flex:1 1 220px;min-width:0;}' +
+      '.wide-col.wide-score{flex:none;}' +
+      '.wide-col.wide-headline{flex:1;min-width:0;}' +
+      '.wide-title{font-size:11px;color:#6b7a75;margin:0 0 2px;}' +
+      '.wide-col.wide-tags{flex:1 1 150px;min-width:0;}' +
+      '.wide-col.wide-tags .tags{margin:0;}' +
+      // Full tip text, not truncated — it wraps across lines instead of
+      // being hidden behind a hover-only tooltip, so all three Safe-How
+      // items always show what they say.
+      '.wide-col.wide-tips{flex:2 1 260px;min-width:0;}' +
+      '.wide-tips{list-style:none;margin:0;padding:0;display:grid;gap:6px;}' +
+      '.wide-tips li{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.35;min-width:0;}' +
+      '.wide-col.wide-actions{flex:1 1 140px;min-width:0;display:flex;flex-direction:column;gap:6px;}' +
+      '.wide-actionrow{display:flex;gap:6px;}' +
+      '.wide-iconbtn{flex:1;font-size:15px;padding:6px 4px;text-align:center;}' +
+      '.wide-feedback{border-top:none;padding-top:0;}' +
+      '.wide-feedback span{font-size:10.5px;}' +
+      '.wide-src{padding:0 18px 10px;margin:0;}' +
+      // Below 640px there just isn't room for five columns in a row — the
+      // proposal itself doesn't cover this, so rather than clip or squeeze
+      // text into an unreadable sliver, fall back to a single column, as
+      // close to the "card" layout's shape as this content allows.
+      '@media (max-width:660px){' +
+      '.widget.wide{min-width:0;}' +
+      '.wide-row{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px 8px;}' +
+      '.wide-mascot{width:100%;height:170px;align-self:auto;}' +
+      '.wide-scorewrap,.wide-col.wide-tags,.wide-col.wide-tips,.wide-col.wide-actions{flex:none;width:100%;}' +
+      '}' +
       '.head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}' +
       '.avatar{width:34px;height:34px;border-radius:50%;flex:none;}' +
       '.headtext{flex:1;min-width:0;}' +
@@ -162,7 +226,80 @@
       '.feedback span{font-size:11.5px;color:#6b7a75;}' +
       '.feedback .btns{display:flex;gap:6px;}' +
       '.fbtn{width:26px;height:26px;border-radius:50%;border:1px solid #e2e8e6;background:#fff;cursor:pointer;font-size:12px;}' +
-      '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}'
+      '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}' +
+      // "--s" is a scale factor set inline per-instance from data-size (see
+      // sizeScale()); every bubble/banner dimension below is calc()-derived
+      // from it so any size stays internally proportioned and never clips
+      // or overlaps, instead of needing separate sm/md/lg rule sets.
+      '.bubble{position:fixed;z-index:2147483000;width:calc(60px * var(--s,1));height:calc(60px * var(--s,1));' +
+      'border-radius:50%;border:none;padding:0;cursor:pointer;background:#fff;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,.25);font-family:system-ui,-apple-system,sans-serif;}' +
+      '.bubble-avatar{width:100%;height:100%;border-radius:50%;display:block;object-fit:cover;}' +
+      '.bubble-score{position:absolute;right:calc(-4px * var(--s,1));bottom:calc(-4px * var(--s,1));' +
+      'min-width:calc(22px * var(--s,1));height:calc(22px * var(--s,1));padding:0 calc(4px * var(--s,1));' +
+      'border-radius:999px;color:#fff;font-size:calc(11px * var(--s,1));font-weight:700;display:flex;' +
+      'align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fff;' +
+      'box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
+      '.banner{width:100%;max-width:calc(400px * var(--s,1));display:flex;align-items:center;' +
+      'gap:calc(12px * var(--s,1));text-align:left;box-sizing:border-box;' +
+      'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;' +
+      'border:1.5px solid #f6d9a8;border-radius:calc(16px * var(--s,1));' +
+      'padding:calc(10px * var(--s,1)) calc(14px * var(--s,1));cursor:pointer;}' +
+      // Fixed top/bottom stretches the bar edge-to-edge, but the content
+      // group itself should stay a compact, centered cluster (like a
+      // cookie-consent bar) rather than clumping at the left edge of a
+      // now much-wider row.
+      '.banner.fixed-top,.banner.fixed-bottom{position:fixed;left:0;right:0;max-width:none;' +
+      'width:100%;justify-content:center;border-radius:0;border-left:none;border-right:none;' +
+      'z-index:2147483000;box-sizing:border-box;}' +
+      '.banner.fixed-top{top:0;border-top:none;}' +
+      '.banner.fixed-bottom{bottom:0;border-bottom:none;}' +
+      '.banner-avatarwrap{position:relative;flex:none;width:calc(52px * var(--s,1));' +
+      'height:calc(72px * var(--s,1));background:#c8c9cd;border-radius:calc(10px * var(--s,1));' +
+      'overflow:hidden;}' +
+      '.banner-avatar{width:100%;height:100%;display:block;object-fit:contain;object-position:center top;}' +
+      '.banner-score{position:absolute;left:calc(-4px * var(--s,1));top:calc(-4px * var(--s,1));' +
+      'min-width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));padding:0 calc(4px * var(--s,1));' +
+      'border-radius:999px;background:#f2921a;color:#fff;font-size:calc(10px * var(--s,1));font-weight:700;' +
+      'display:flex;align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fdf3ec;}' +
+      '.banner-textwrap{display:flex;flex-direction:column;gap:calc(3px * var(--s,1));min-width:0;flex:1;}' +
+      '.banner-title{font-size:calc(13.5px * var(--s,1));font-weight:700;color:#182430;overflow:hidden;' +
+      'text-overflow:ellipsis;white-space:nowrap;}' +
+      '.banner-cta{font-size:calc(12px * var(--s,1));font-weight:600;color:#f2921a;display:flex;' +
+      'align-items:center;gap:calc(4px * var(--s,1));white-space:nowrap;}' +
+      '.banner-chevron{display:inline-flex;align-items:center;justify-content:center;' +
+      'width:calc(16px * var(--s,1));height:calc(16px * var(--s,1));border-radius:50%;background:#f2921a;' +
+      'color:#fff;font-size:calc(11px * var(--s,1));line-height:1;flex:none;}'
+    );
+  }
+
+  function bubbleMarkup(data, color) {
+    return (
+      '<button class="bubble" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
+      '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
+      '</button>'
+    );
+  }
+
+  // Matches the proposal's own [그림4] mockup: an inline CTA banner sitting
+  // in the host page's content flow (e.g. under a booking-confirmation
+  // receipt), rather than a fixed floating icon like "bubble". Uses the same
+  // full-body mascot art (on its matching studio-gray backdrop) as "wide",
+  // not just the small round face crop, since a strip this size has room to
+  // show the whole character.
+  function bannerMarkup(data, location) {
+    return (
+      '<button class="banner" aria-label="무사이 안전정보 열기 (안전지수 ' + data.score.toFixed(0) + '점)">' +
+      '<span class="banner-avatarwrap">' +
+      '<img class="banner-avatar" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
+      '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
+      '</span>' +
+      '<span class="banner-textwrap">' +
+      '<span class="banner-title">' + location + ' 무사이 안전정보</span>' +
+      '<span class="banner-cta">확인해 보세요 <span class="banner-chevron">›</span></span>' +
+      '</span>' +
+      '</button>'
     );
   }
 
@@ -179,7 +316,13 @@
 
   function bindInteractiveBits(root, el) {
     var closeBtn = root.querySelector('.close');
-    if (closeBtn) closeBtn.addEventListener('click', function () { el.style.display = 'none'; });
+    if (closeBtn) closeBtn.addEventListener('click', function () {
+      if (el.__musaiCollapsedOrigin) {
+        render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize);
+      } else {
+        el.style.display = 'none';
+      }
+    });
 
     var fbtns = root.querySelectorAll('.fbtn');
     for (var i = 0; i < fbtns.length; i++) {
@@ -200,13 +343,12 @@
 
   function bodyMarkup(data, location, layout) {
     var isSheet = layout === 'bottomsheet';
-    var isWide = layout === 'wide';
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
     var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
     var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
-    var inner =
+    return (
       '<div class="head">' +
-      (isWide ? '' : '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />') +
+      '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<div class="headtext"><p class="title">무사이 안전정보</p><p class="subtitle">여행지의 안전을 함께 지켜요</p></div>' +
       (isSheet ? '<button class="close" aria-label="닫기">✕</button>' : '') +
       '</div>' +
@@ -225,20 +367,100 @@
       '</div>' +
       '<div class="feedback"><span>💬 이 정보가 도움이 되었나요?</span>' +
       '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
-      '<p class="src">' + data.sourceName + '</p>';
-
-    if (isWide) {
-      return '<div class="content">' + inner + '</div><img class="mascot-big" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />';
-    }
-    return inner;
+      '<p class="src">' + data.sourceName + '</p>'
+    );
   }
 
-  function render(el, data, location, layout) {
+  // "wide" is a long, low strip, not a scaled-up card — so its content is
+  // spread across columns in one row (mascot | gauge | headline | tags |
+  // Safe-How | actions) rather than the vertical stack every other layout
+  // uses, keeping it genuinely elongated instead of just "a bigger box".
+  function wideBodyMarkup(data, location) {
+    var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
+    var label = data.statusLabel || STATUS_LABELS[data.status] || data.status;
+    var headline = location + (data.contextLabel ? ' ' + data.contextLabel : '') + ' 안전지수 ' + data.score.toFixed(0) + '점';
+    var tips = data.safeHowTips || [];
+    return (
+      '<div class="wide-row">' +
+      '<img class="wide-mascot" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
+      '<div class="wide-scorewrap">' +
+      '<div class="wide-col wide-score">' + gaugeSvg(data.score, color, 56) + '</div>' +
+      '<div class="wide-col wide-headline">' +
+      '<p class="wide-title">무사이 안전정보</p>' +
+      '<p class="headline">' + headline + '</p>' +
+      '<span class="pill" style="background:' + color + '">' + label + '</span>' +
+      '</div>' +
+      '</div>' +
+      '<div class="wide-col wide-tags">' + tagsMarkup(data.riskTags) + '</div>' +
+      '<div class="wide-col wide-tips">' +
+      '<ol class="wide-tips">' + tips.map(function (t, i) {
+        return '<li><span class="num">' + (i + 1) + '</span>' +
+          '<span class="icon">' + (t.icon || '') + '</span><span>' + t.text + '</span></li>';
+      }).join('') + '</ol>' +
+      '</div>' +
+      '<div class="wide-col wide-actions">' +
+      '<div class="wide-actionrow">' +
+      '<button class="utilbtn wide-iconbtn" data-label="🏛 공관 연락처 보기" title="공관 연락처 보기">🏛</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="📞 긴급번호 저장" title="긴급번호 저장">📞</button>' +
+      '<button class="utilbtn wide-iconbtn" data-label="📄 원문 출처 확인" title="원문 출처 확인">📄</button>' +
+      '</div>' +
+      '<div class="feedback wide-feedback"><span>💬 도움이 되었나요?</span>' +
+      '<div class="btns"><button class="fbtn" aria-label="도움이 됨">👍</button><button class="fbtn" aria-label="도움이 안 됨">👎</button></div></div>' +
+      '</div>' +
+      '</div>' +
+      '<p class="src wide-src">' + data.sourceName + '</p>'
+    );
+  }
+
+  // data-position corners for "bubble" (a fixed viewport-anchored icon).
+  var BUBBLE_POSITIONS = {
+    'bottom-right': { bottom: '18px', right: '18px' },
+    'bottom-left': { bottom: '18px', left: '18px' },
+    'top-right': { top: '18px', right: '18px' },
+    'top-left': { top: '18px', left: '18px' },
+  };
+  // data-size multipliers, consumed as the "--s" CSS variable so every
+  // bubble/banner dimension scales together via calc() instead of needing
+  // separate rule sets per size.
+  var SIZE_SCALE = { sm: 0.8, md: 1, lg: 1.3 };
+
+  function sizeScale(size) {
+    return SIZE_SCALE[size] || SIZE_SCALE.md;
+  }
+
+  function render(el, data, location, layout, position, size) {
     var shadow = el.shadowRoot || el.attachShadow({ mode: 'open' });
+    el.__musaiData = data;
+    el.__musaiLocation = location;
+    el.__musaiPosition = position;
+    el.__musaiSize = size;
+
+    if (layout === 'bubble' || layout === 'banner') {
+      var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
+      var collapsedHtml = layout === 'bubble' ? bubbleMarkup(data, color) : bannerMarkup(data, location);
+      shadow.innerHTML = '<style>' + css() + '</style>' + collapsedHtml;
+      var collapsedBtn = shadow.querySelector(layout === 'bubble' ? '.bubble' : '.banner');
+      if (collapsedBtn) {
+        collapsedBtn.style.setProperty('--s', String(sizeScale(size)));
+        if (layout === 'bubble') {
+          var corner = BUBBLE_POSITIONS[position] || BUBBLE_POSITIONS['bottom-right'];
+          for (var side in corner) collapsedBtn.style[side] = corner[side];
+        } else if (position === 'top' || position === 'bottom') {
+          collapsedBtn.classList.add('fixed-' + position);
+        }
+        collapsedBtn.addEventListener('click', function () {
+          el.__musaiCollapsedOrigin = layout;
+          render(el, data, location, 'bottomsheet', position, size);
+        });
+      }
+      return;
+    }
+
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
+    var content = layout === 'wide' ? wideBodyMarkup(data, location) : bodyMarkup(data, location, layout);
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
-      '<div class="widget' + extraClass + '">' + bodyMarkup(data, location, layout) + '</div>';
+      '<div class="widget' + extraClass + '">' + content + '</div>';
     bindInteractiveBits(shadow, el);
   }
 
@@ -249,9 +471,30 @@
       console.warn('musai-widget: renderInto requires countryCode', el);
       return;
     }
+    // A previous bottomsheet's close button (with no bubble/banner to
+    // collapse back to) hides the host element outright; an explicit
+    // re-render request means "show it," so undo that regardless of layout.
+    el.style.display = '';
     var regionName = params.regionName;
     var apiBase = params.apiBase;
-    var layout = (params.layout === 'bottomsheet' || params.layout === 'wide') ? params.layout : 'card';
+    var VALID_LAYOUTS = { bottomsheet: 1, wide: 1, bubble: 1, banner: 1 };
+    var layout = VALID_LAYOUTS[params.layout] ? params.layout : 'card';
+    var position = BUBBLE_POSITIONS[params.position] ? params.position
+      : (params.position === 'top' || params.position === 'bottom') ? params.position
+      : undefined;
+    var size = SIZE_SCALE[params.size] ? params.size : undefined;
+    var closeTo = (params.closeTo === 'bubble' || params.closeTo === 'banner') ? params.closeTo : 'hide';
+
+    // Deciding what a close button does is a fresh-configuration concern,
+    // not a runtime one: only set it here, for a layout being rendered
+    // top-level (card/bottomsheet/wide as requested directly). When the
+    // requested layout is itself "bubble"/"banner", leave this alone —
+    // expanding one into a bottomsheet sets it dynamically at click time
+    // (see render()), and re-priming it here from a stale closeTo would
+    // clobber that click-time value before the click even happens.
+    if (layout !== 'bubble' && layout !== 'banner') {
+      el.__musaiCollapsedOrigin = closeTo === 'hide' ? undefined : closeTo;
+    }
 
     var showDemo = function () {
       var demo = demoDataFor(countryCode, regionName);
@@ -266,7 +509,7 @@
         riskTags: demo.riskTags,
         safeHowTips: demo.safeHowTips,
         sourceName: '데모 모드 (실시간 API 미연결)',
-      }, loc, layout);
+      }, loc, layout, position, size);
     };
 
     if (!apiBase) {
@@ -279,7 +522,7 @@
         var loc = (regionName || data.regionName)
           ? (regionName || data.regionName) + ', ' + countryCode.toUpperCase()
           : countryCode.toUpperCase();
-        render(el, data, loc, layout);
+        render(el, data, loc, layout, position, size);
       })
       .catch(showDemo);
   }
@@ -290,6 +533,9 @@
       regionName: el.getAttribute('data-region'),
       apiBase: el.getAttribute('data-api-base'),
       layout: el.getAttribute('data-layout'),
+      position: el.getAttribute('data-position'),
+      size: el.getAttribute('data-size'),
+      closeTo: el.getAttribute('data-close-to'),
     };
   }
 

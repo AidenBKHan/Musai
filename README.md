@@ -93,11 +93,24 @@ included.
 
 `data-layout` is `card` (default, compact), `bottomsheet` (full-width,
 anchored to the bottom of the viewport, with a dismiss button — matching the
-proposal's mobile voucher-confirmation mockup), or `wide` (horizontal, large
-mascot illustration — matching the proposal's desktop sidebar mockup). Falls
-back to clearly-labeled demo data (using the proposal's own Paris/Osaka/Phnom
-Penh examples) if `data-api-base` is omitted or the request fails/times out.
-See `web-widget/README.md` for all options.
+proposal's mobile voucher-confirmation mockup), `wide` (a long, low
+horizontal strip — mascot, gauge, headline, tags, Safe-How and actions
+spread across one row instead of stacked, for a desktop sidebar or
+below-content placement — elongated, not a scaled-up card),
+`bubble` (a small fixed round icon + score badge anchored to a viewport
+corner), or `banner` (an inline CTA bar embedded in the host page's own
+content, e.g. under a booking-confirmation receipt — matching the
+proposal's own [그림4] mockup exactly, arrow included). Both `bubble` and
+`banner` expand into the `bottomsheet` view on click and collapse back to
+themselves on close, instead of always showing the full card — for
+embedding Musai as a supplementary, non-intrusive add-on rather than a
+page-dominating card. Both also take `data-position` (which corner for
+`bubble`; `inline`/`top`/`bottom` for `banner`) and `data-size`
+(`sm`/`md`/`lg`, every dimension scaling together so nothing clips at any
+size). Falls back to clearly-labeled demo data (using the proposal's own
+Paris/Osaka/Phnom Penh examples) if `data-api-base` is
+omitted or the request fails/times out. See `web-widget/README.md` for all
+options.
 
 ## GitHub Pages site
 

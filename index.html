@@ -39,6 +39,14 @@
     background: transparent;
     color: inherit;
   }
+  /* The native option-list popup's background isn't ours to style — it
+     follows color-scheme, not our "background" above — so on a dark-mode
+     visitor "color:inherit" (white, from the page's dark text) sits on a
+     popup that color-scheme:light forces light, making every option
+     invisible. Pin an explicit light background + dark text on the select
+     itself too (not just the popup), so the closed control and its popup
+     both stay legible regardless of the visitor's OS theme. */
+  select { color-scheme: light; color: #14231f; background: #fff; }
   button { cursor: pointer; }
   button.primary {
     background: #00796b;
@@ -113,8 +121,10 @@
   <section>
     <h2>위젯 형태 한눈에 보기</h2>
     <p class="section-note">
-      삽입 위치에 따라 세 가지 레이아웃을 고를 수 있어요 — 일반 카드, 모바일 예약완료
-      화면용 바텀시트, 데스크톱 사이드바용 와이드(큰 마스코트 이미지 포함).
+      삽입 위치에 따라 다섯 가지 레이아웃을 고를 수 있어요 — 일반 카드, 모바일 예약완료
+      화면용 바텀시트, 데스크톱 사이드바용으로 길게 늘어진 와이드(뚱뚱한 박스가 아니라
+      한 줄로 길쭉하게 펼쳐지는 형태), 화면 구석에 떠 있다가 클릭하면 펼쳐지는 버블,
+      그리고 예약완료 화면 안에 놓는 CTA 배너(제안서 목업과 동일한 형태).
     </p>
     <div class="gallery">
       <div class="gallery-item">
@@ -128,8 +138,20 @@
         </div>
       </div>
       <div class="gallery-item">
-        <h3>wide — 데스크톱 사이드바용</h3>
+        <h3>wide — 길게 늘어진 데스크톱 사이드바용</h3>
         <div class="musai-safety-widget" data-country="KH" data-layout="wide"></div>
+      </div>
+      <div class="gallery-item">
+        <h3>bubble — 화면 구석의 작은 아이콘, 클릭하면 펼쳐짐</h3>
+        <div class="phone-frame">
+          <iframe src="bubble-demo.html" title="버블 미리보기"></iframe>
+        </div>
+      </div>
+      <div class="gallery-item">
+        <h3>banner — 예약완료 화면 안의 CTA 배너, 클릭하면 펼쳐짐</h3>
+        <div class="phone-frame">
+          <iframe src="banner-demo.html" title="배너 미리보기"></iframe>
+        </div>
       </div>
     </div>
   </section>

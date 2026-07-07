@@ -73,7 +73,12 @@
   a { color: #00897b; }
 
   .gallery { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
-  .gallery-item { flex: 0 0 auto; }
+  /* Flex items default to min-width:auto, which refuses to shrink below
+     the content's own preferred width even inside a wrapping flex
+     container — so a widget capable of reflowing narrower (like "wide"
+     on mobile) still forced this box to stay at its widest natural size,
+     overflowing the viewport instead of actually reflowing. */
+  .gallery-item { flex: 0 0 auto; min-width: 0; max-width: 100%; }
   .gallery-item h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; opacity: .8; }
   .phone-frame {
     width: 320px; height: 540px; border: 10px solid #1a1a1a; border-radius: 28px;

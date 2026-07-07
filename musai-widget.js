@@ -304,6 +304,16 @@
   function css() {
     return (
       '*{box-sizing:border-box;}' +
+      // Flex/grid items default to min-width:auto, which can refuse to
+      // shrink below content's preferred width even when the item is
+      // supposed to wrap/reflow — so on a host page with that layout
+      // quirk (including our own docs/index.html gallery), the widget
+      // could get stuck at its widest natural size instead of actually
+      // reflowing narrower. Pin the host element itself so it never
+      // claims more than the space it's actually given, regardless of
+      // what min-width the host page's own flex/grid container left at
+      // its default.
+      ':host{display:block;max-width:100%;min-width:0;box-sizing:border-box;}' +
       '.widget{font-family:system-ui,-apple-system,sans-serif;background:#fff;color:#14231f;' +
       'border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 2px 16px rgba(0,0,0,.12);}' +
       '.widget.sheet{position:fixed;left:0;right:0;bottom:0;z-index:2147483000;max-width:640px;' +

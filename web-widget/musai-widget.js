@@ -194,7 +194,7 @@
       // text into an unreadable sliver, fall back to a single column, as
       // close to the "card" layout's shape as this content allows.
       '@media (max-width:660px){' +
-      '.widget.wide{min-width:0;max-width:360px;}' +
+      '.widget.wide{min-width:0;}' +
       '.wide-row{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px 8px;}' +
       '.wide-mascot{width:100%;height:170px;align-self:auto;}' +
       '.wide-scorewrap,.wide-col.wide-tags,.wide-col.wide-tips,.wide-col.wide-actions{flex:none;width:100%;}' +

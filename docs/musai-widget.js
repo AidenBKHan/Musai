@@ -2,7 +2,7 @@
  * Synced copy of web-widget/musai-widget.js for the GitHub Pages demo
  * (docs/ is served as its own web root, so it can't reference ../web-widget).
  * Keep this in sync with the canonical source until a build step exists.
- *
+/**
  * Musai safety-check-index embeddable widget.
  *
  * Usage on any external site:
@@ -49,6 +49,11 @@
  *   - "bubble" / "banner" — its close button collapses it into that shape
  *     instead of hiding it, as if it had been expanded from one.
  *
+ * Only "bottomsheet" itself renders a dismiss button — "card"/"wide" have
+ * none, and "bubble"/"banner" have no dismiss control on the collapsed icon
+ * either; clicking one always expands into the bottomsheet view, and that
+ * view's own close button is what collapses it back.
+ *
  * `data-lang` is "ko" or "en" — all UI chrome text and demo-mode data
  * switch languages accordingly. Without it, the widget follows the
  * visitor's own device/browser language (`navigator.language`), not their
@@ -88,7 +93,6 @@
       feedbackHelpful: '도움이 됨',
       feedbackNotHelpful: '도움이 안 됨',
       feedbackThanks: '피드백을 보내주셔서 감사합니다 (데모)',
-      dontShowWeek: '이번 주는 다시 보지 않기',
       demoSuffix: ' (데모)',
       bannerCta: '확인해 보세요',
       demoSourceName: '데모 모드 (실시간 API 미연결)',
@@ -113,7 +117,6 @@
       feedbackHelpful: 'Helpful',
       feedbackNotHelpful: 'Not helpful',
       feedbackThanks: 'Thanks for your feedback (demo)',
-      dontShowWeek: "Don't show again this week",
       demoSuffix: ' (demo)',
       bannerCta: 'Check it out',
       demoSourceName: 'Demo mode (live API not connected)',
@@ -133,31 +136,6 @@
     if (explicit === 'ko' || explicit === 'en') return explicit;
     var nav = (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage)) || 'en';
     return nav.toLowerCase().indexOf('ko') === 0 ? 'ko' : 'en';
-  }
-
-  // "Don't show again this week" is scoped to one destination/layout, not
-  // every widget on the page/site — dismissing the Paris banner shouldn't
-  // also hide a Cambodia bubble elsewhere. Keyed by country+layout+region
-  // (not DOM position) so it's still remembered across reloads/navigation
-  // within the site. localStorage access is wrapped since some embeds may
-  // run where it's unavailable (privacy modes, sandboxed iframes).
-  function snoozeKeyFor(countryCode, layout, regionName) {
-    return 'musai-widget-snoozed:' + countryCode.toUpperCase() + ':' + layout + ':' + (regionName || '');
-  }
-
-  function isSnoozed(key) {
-    try {
-      var until = parseInt(localStorage.getItem(key), 10);
-      return !!until && Date.now() < until;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function snoozeForDays(key, days) {
-    try {
-      localStorage.setItem(key, String(Date.now() + days * 24 * 60 * 60 * 1000));
-    } catch (e) { /* ignore — worst case the widget just doesn't remember */ }
   }
 
   // Small circular crop of the proposal's own "무사(MUSA)" mascot artwork.
@@ -387,11 +365,6 @@
       '.feedback .btns{display:flex;gap:6px;}' +
       '.fbtn{width:26px;height:26px;border-radius:50%;border:1px solid #e2e8e6;background:#fff;cursor:pointer;font-size:12px;}' +
       '.src{font-size:9.5px;color:#8a9793;margin:8px 0 0;}' +
-      '.snooze-row{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7a75;' +
-      'margin:8px 0 0;cursor:pointer;}' +
-      '.snooze-row input{margin:0;}' +
-      '.wide-close{position:absolute;top:8px;right:10px;}' +
-      '.wide-snooze{font-size:9.5px;margin-top:4px;}' +
       // "--s" is a scale factor set inline per-instance from data-size (see
       // sizeScale()); every bubble/banner dimension below is calc()-derived
       // from it so any size stays internally proportioned and never clips
@@ -405,20 +378,11 @@
       'border-radius:999px;color:#fff;font-size:calc(11px * var(--s,1));font-weight:700;display:flex;' +
       'align-items:center;justify-content:center;border:calc(2px * var(--s,1)) solid #fff;' +
       'box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
-      '.bubble-close{position:absolute;top:calc(-4px * var(--s,1));right:calc(-4px * var(--s,1));' +
-      'width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));border-radius:50%;background:#fff;' +
-      'border:1px solid #e2e8e6;color:#6b7a75;font-size:calc(11px * var(--s,1));cursor:pointer;padding:0;' +
-      'display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2);}' +
       '.banner{position:relative;width:100%;max-width:calc(400px * var(--s,1));display:flex;' +
       'align-items:center;gap:calc(12px * var(--s,1));text-align:left;box-sizing:border-box;' +
       'font-family:system-ui,-apple-system,sans-serif;background:#fdf3ec;' +
       'border:1.5px solid #f6d9a8;border-radius:calc(16px * var(--s,1));' +
       'padding:calc(10px * var(--s,1)) calc(14px * var(--s,1));cursor:pointer;}' +
-      '.banner-close{position:absolute;top:calc(6px * var(--s,1));right:calc(8px * var(--s,1));' +
-      'background:rgba(255,255,255,.7);border:none;border-radius:50%;' +
-      'width:calc(20px * var(--s,1));height:calc(20px * var(--s,1));color:#6b7a75;' +
-      'font-size:calc(12px * var(--s,1));cursor:pointer;padding:0;display:flex;align-items:center;' +
-      'justify-content:center;}' +
       // Fixed top/bottom stretches the bar edge-to-edge, but the content
       // group itself should stay a compact, centered cluster (like a
       // cookie-consent bar) rather than clumping at the left edge of a
@@ -453,17 +417,13 @@
     );
   }
 
-  // Not a <button> — it hosts a real <button> (the dismiss X) inside it,
-  // and nested interactive elements aren't valid HTML, so the outer
-  // "click to expand" surface is a div with its own role/keyboard support.
   function bubbleMarkup(data, color, lang) {
     var S = STRINGS[lang];
     return (
-      '<div class="bubble" role="button" tabindex="0" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
+      '<button class="bubble" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<img class="bubble-avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<span class="bubble-score" style="background:' + color + '">' + data.score.toFixed(0) + '</span>' +
-      '<button class="bubble-close" aria-label="' + S.close + '">✕</button>' +
-      '</div>'
+      '</button>'
     );
   }
 
@@ -476,7 +436,7 @@
   function bannerMarkup(data, location, lang) {
     var S = STRINGS[lang];
     return (
-      '<div class="banner" role="button" tabindex="0" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
+      '<button class="banner" aria-label="' + S.ariaOpenLabel(data.score) + '">' +
       '<span class="banner-avatarwrap">' +
       '<img class="banner-avatar" src="' + MASCOT_WIDE_DATA_URI + '" alt="" />' +
       '<span class="banner-score">' + data.score.toFixed(0) + '</span>' +
@@ -485,8 +445,7 @@
       '<span class="banner-title">' + S.bannerTitle(location) + '</span>' +
       '<span class="banner-cta">' + S.bannerCta + ' <span class="banner-chevron">›</span></span>' +
       '</span>' +
-      '<button class="banner-close" aria-label="' + S.close + '">✕</button>' +
-      '</div>'
+      '</button>'
     );
   }
 
@@ -505,15 +464,6 @@
     var S = STRINGS[lang];
     var closeBtn = root.querySelector('.close');
     if (closeBtn) closeBtn.addEventListener('click', function () {
-      // Checking "don't show again this week" is a stronger signal than
-      // whatever collapse-to-bubble/banner behavior was configured — the
-      // visitor is asking to be left alone, not to shrink to an icon.
-      var snoozeCheck = root.querySelector('.snooze-check');
-      if (snoozeCheck && snoozeCheck.checked && el.__musaiSnoozeKey) {
-        snoozeForDays(el.__musaiSnoozeKey, 7);
-        el.style.display = 'none';
-        return;
-      }
       if (el.__musaiCollapsedOrigin) {
         render(el, el.__musaiData, el.__musaiLocation, el.__musaiCollapsedOrigin, el.__musaiPosition, el.__musaiSize, el.__musaiLang);
       } else {
@@ -538,7 +488,7 @@
     }
   }
 
-  function bodyMarkup(data, location, lang) {
+  function bodyMarkup(data, location, lang, layout) {
     var S = STRINGS[lang];
     var color = STATUS_COLORS[data.status] || STATUS_COLORS.warning;
     var label = data.statusLabel || S.statusLabels[data.status] || data.status;
@@ -547,7 +497,7 @@
       '<div class="head">' +
       '<img class="avatar" src="' + MASCOT_DATA_URI + '" alt="" />' +
       '<div class="headtext"><p class="title">' + S.title + '</p><p class="subtitle">' + S.subtitle + '</p></div>' +
-      '<button class="close" aria-label="' + S.close + '">✕</button>' +
+      (layout === 'bottomsheet' ? '<button class="close" aria-label="' + S.close + '">✕</button>' : '') +
       '</div>' +
       '<div class="scorebox">' +
       gaugeSvg(data.score, color) +
@@ -564,7 +514,6 @@
       '</div>' +
       '<div class="feedback"><span>' + S.feedbackQuestion + '</span>' +
       '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
-      '<label class="snooze-row"><input type="checkbox" class="snooze-check" />' + S.dontShowWeek + '</label>' +
       '<p class="src">' + data.sourceName + '</p>'
     );
   }
@@ -605,10 +554,8 @@
       '</div>' +
       '<div class="feedback wide-feedback"><span>' + S.feedbackQuestionShort + '</span>' +
       '<div class="btns"><button class="fbtn" aria-label="' + S.feedbackHelpful + '">👍</button><button class="fbtn" aria-label="' + S.feedbackNotHelpful + '">👎</button></div></div>' +
-      '<label class="snooze-row wide-snooze"><input type="checkbox" class="snooze-check" />' + S.dontShowWeek + '</label>' +
       '</div>' +
       '</div>' +
-      '<button class="close wide-close" aria-label="' + S.close + '">✕</button>' +
       '<p class="src wide-src">' + data.sourceName + '</p>'
     );
   }
@@ -650,35 +597,16 @@
         } else if (position === 'top' || position === 'bottom') {
           collapsedBtn.classList.add('fixed-' + position);
         }
-        var expand = function () {
+        collapsedBtn.addEventListener('click', function () {
           el.__musaiCollapsedOrigin = layout;
           render(el, data, location, 'bottomsheet', position, size, lang);
-        };
-        collapsedBtn.addEventListener('click', expand);
-        // A real <button> gets Enter/Space activation for free; this is a
-        // div (see the comment on bubbleMarkup/bannerMarkup for why), so
-        // role="button" alone doesn't make keyboard activation happen.
-        collapsedBtn.addEventListener('keydown', function (ev) {
-          if (ev.key === 'Enter' || ev.key === ' ') {
-            ev.preventDefault();
-            expand();
-          }
-        });
-      }
-      // The dismiss X sits inside the expand-click surface, so its own
-      // click must not bubble up and trigger the expand too.
-      var innerCloseBtn = shadow.querySelector(layout === 'bubble' ? '.bubble-close' : '.banner-close');
-      if (innerCloseBtn) {
-        innerCloseBtn.addEventListener('click', function (ev) {
-          ev.stopPropagation();
-          el.style.display = 'none';
         });
       }
       return;
     }
 
     var extraClass = layout === 'bottomsheet' ? ' sheet' : layout === 'wide' ? ' wide' : '';
-    var content = layout === 'wide' ? wideBodyMarkup(data, location, lang) : bodyMarkup(data, location, lang);
+    var content = layout === 'wide' ? wideBodyMarkup(data, location, lang) : bodyMarkup(data, location, lang, layout);
     shadow.innerHTML =
       '<style>' + css() + '</style>' +
       '<div class="widget' + extraClass + '">' + content + '</div>';
@@ -706,17 +634,6 @@
       : undefined;
     var size = SIZE_SCALE[params.size] ? params.size : undefined;
     var closeTo = (params.closeTo === 'bubble' || params.closeTo === 'banner') ? params.closeTo : 'hide';
-
-    // A "don't show again this week" dismissal is scoped to this specific
-    // destination+layout, so skip rendering entirely (no fetch, no
-    // content) rather than showing it and relying on the visitor to
-    // close it again.
-    var snoozeKey = snoozeKeyFor(countryCode, layout, regionName);
-    el.__musaiSnoozeKey = snoozeKey;
-    if (isSnoozed(snoozeKey)) {
-      el.style.display = 'none';
-      return Promise.resolve();
-    }
 
     // Deciding what a close button does is a fresh-configuration concern,
     // not a runtime one: only set it here, for a layout being rendered

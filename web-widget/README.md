@@ -44,21 +44,11 @@ bottomsheet's close button collapses them back to their original shape
 hiding the widget entirely. A directly-configured `bottomsheet` can opt
 into the same collapse-instead-of-hide behavior via `data-close-to`.
 
-### Dismissing the widget
-
-Every layout has its own ✕ — `card`/`wide`/`bottomsheet` in the top-right
-corner, `bubble`/`banner` as a small badge on the icon itself (clicking it
-doesn't trigger the expand). `bubble`/`banner`'s own ✕ always hides
-outright; it's a separate action from clicking the icon to expand.
-
-`card`, `bottomsheet`, and `wide` also show a "don't show again this
-week" checkbox next to the feedback row. Checking it before closing
-snoozes that specific destination+layout (keyed by
-`data-country`/`data-layout`/`data-region`, not DOM position) for 7 days
-via `localStorage` — dismissing the Paris banner doesn't hide a Cambodia
-bubble elsewhere on the same page. A fresh `renderInto()` call (including
-the automatic data-attribute scan on page load) checks this and skips
-rendering entirely while that destination+layout stays snoozed.
+Only `bottomsheet` itself has a dismiss (✕) button — `card`/`wide` have
+none, and `bubble`/`banner`'s own collapsed icon has no dismiss control
+either; clicking it always expands into the bottomsheet view, whose close
+button is what collapses it back (or hides it, per `data-close-to`, when
+that bottomsheet was reached directly rather than via an expand).
 
 ### Demo mode
 

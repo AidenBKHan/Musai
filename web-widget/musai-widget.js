@@ -317,7 +317,12 @@
       '.wide-col.wide-tips{flex:2 1 260px;min-width:0;}' +
       '.wide-tips{list-style:none;margin:0;padding:0;display:grid;gap:6px;}' +
       '.wide-tips li{display:flex;align-items:flex-start;gap:6px;font-size:12px;line-height:1.35;min-width:0;}' +
-      '.wide-col.wide-actions{flex:1 1 140px;min-width:0;display:flex;flex-direction:column;gap:6px;}' +
+      // Unlike the other wide-* columns, this one holds fixed-size controls
+      // (icon buttons + thumbs-up/down) that can't usefully shrink below
+      // their own content width — letting it collapse with the rest at
+      // narrow-but-not-yet-stacked widths clipped the thumbs-down button
+      // against .widget.wide's overflow:hidden.
+      '.wide-col.wide-actions{flex:1 1 140px;min-width:128px;display:flex;flex-direction:column;gap:6px;}' +
       '.wide-actionrow{display:flex;gap:6px;}' +
       '.wide-iconbtn{flex:1;font-size:15px;padding:6px 4px;text-align:center;}' +
       '.wide-feedback{border-top:none;padding-top:0;}' +

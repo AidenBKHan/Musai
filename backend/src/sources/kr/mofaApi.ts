@@ -70,6 +70,19 @@ export async function fetchMofaItems(
     throw new Error(`mofaApi: ${url} did not return JSON — raw response: ${text.slice(0, 300)}`);
   }
 
+  // data.go.kr has two distinct error envelopes: a platform-wide one used
+  // for request-level problems (bad/unregistered service key, malformed
+  // params — cmmMsgHeader.returnReasonCode) and a per-service one used for
+  // business-logic errors (response.header.resultCode). Check both rather
+  // than assuming only the per-service shape, or a platform-level failure
+  // silently falls through as an empty item list instead of a clear error.
+  const commonError = data?.OpenAPI_ServiceResponse?.cmmMsgHeader;
+  if (commonError) {
+    throw new Error(
+      `mofaApi: ${url} — ${commonError.errMsg ?? 'error'} (${commonError.returnReasonCode ?? '?'}): ${commonError.returnAuthMsg ?? ''}`,
+    );
+  }
+
   const header = data?.response?.header;
   if (header && header.resultCode !== '00' && header.resultCode !== undefined) {
     throw new Error(`mofaApi: ${url} returned ${header.resultCode} ${header.resultMsg ?? ''}`);

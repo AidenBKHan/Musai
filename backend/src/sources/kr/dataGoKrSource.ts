@@ -243,18 +243,40 @@ function settledOr<T>(
   return extract(result.value);
 }
 
-// data.go.kr/data/15000827 (외교부_여행경보제도) defines 4 tiers: 1=남행유의,
-// 2=여행자제, 3=철수권고, 4=여행금지. Exact response field name for the tier
-// isn't confirmed (see mofaApi.ts header) — tries a few plausible candidates.
-const TRAVEL_ALARM_LEVEL_RISK: Record<string, number> = { '1': 25, '2': 50, '3': 75, '4': 100 };
+// 여행경보제도 defines 4 tiers: 1=남색경보(여행유의), 2=황색경보(여행자제),
+// 3=적색경보(철수권고), 4=흑색경보(여행금지). The response field for this is
+// confirmed to be `alarm_lvl` (외교부_국가∙지역별 여행경보 활용가이드 v1.4.docx),
+// but the doc's own sample value was an empty string (Ghana had no active
+// alarm), so the exact non-empty encoding (numeric tier vs. the Korean tier
+// name vs. a color name) isn't confirmed — tries numeric first, then a
+// Korean-keyword match against both alarm_lvl and remark (비고).
+const TIER_KEYWORD_RISK: Array<[RegExp, number]> = [
+  [/흑색|여행금지|금지/, 100],
+  [/적색|철수권고|철수/, 75],
+  [/황색|여행자제|자제/, 50],
+  [/남색|여행유의|유의/, 25],
+];
 
 function travelAlarmRisk(items: Record<string, unknown>[]): number {
-  if (items.length === 0) return 15; // no active alarm on record — low baseline risk
-  const level = items
-    .map((item) => pickField(item, ['alarmLevel', 'alrmLvl', 'travelAlarmLevel', 'dangerLevel', 'gradeCode', 'grade']))
-    .find((v) => v && TRAVEL_ALARM_LEVEL_RISK[v] !== undefined);
-  return level ? TRAVEL_ALARM_LEVEL_RISK[level] : 30;
+  // The list returns one row per country/region regardless of alarm status
+  // (region_ty suggests some countries have several rows for sub-regions
+  // with different alarm levels) — so zero matching rows means our country
+  // name/code didn't match anything in the list (a lookup miss), not "no
+  // active alarm", and multiple matches take the highest (most protective).
+  if (items.length === 0) return 30;
+
+  const risks = items.map((item) => {
+    const alarmLvl = pickField(item, ['alarm_lvl']) ?? '';
+    if (!alarmLvl) return 15; // matched the country; alarm_lvl is blank — no active alarm
+    if (TRAVEL_ALARM_LEVEL_RISK[alarmLvl] !== undefined) return TRAVEL_ALARM_LEVEL_RISK[alarmLvl];
+    const text = `${alarmLvl} ${pickField(item, ['remark']) ?? ''}`;
+    const tier = TIER_KEYWORD_RISK.find(([pattern]) => pattern.test(text));
+    return tier ? tier[1] : 40; // alarm_lvl is non-empty but unrecognized — assume some elevated risk
+  });
+  return Math.max(...risks);
 }
+
+const TRAVEL_ALARM_LEVEL_RISK: Record<string, number> = { '1': 25, '2': 50, '3': 75, '4': 100 };
 
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 

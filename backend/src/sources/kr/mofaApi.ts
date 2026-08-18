@@ -1,27 +1,38 @@
 /**
  * Thin client for Korea's Ministry of Foreign Affairs (외교부) OpenAPIs on
- * data.go.kr. All of these share the same request/response envelope
- * (`response.header.resultCode` / `response.body.items.item[]`), a
- * `serviceKey` query param, and (confirmed empirically — a live call
- * returned a valid JSON error body) accept `type=json` to skip XML, even
- * though the per-service doc below only lists XML as a supported format —
- * so one generic fetch function covers every endpoint here.
+ * data.go.kr. These do NOT all share one response envelope — each service
+ * team apparently built its own independently, confirmed by comparing two
+ * official spec docs:
  *
- * Endpoint paths and field names are taken from data.go.kr's own official
- * spec doc for each service (외교부_기술문서_국가별 안전정보_v1.9.docx for
- * CountrySafetyService; the others are still cross-checked via data.go.kr's
- * listing pages only, not an official field-level doc — see the TODO on
- * TRAVEL_ALARM_URL/ACCIDENT_URL below).
+ *  - CountrySafetyService: `{ response: { header: { resultCode: "00" (string) },
+ *    body: { items: { item: [...] } } } }`
+ *  - TravelAlarmService2: flat — `{ resultCode: 0 (number), resultMsg,
+ *    data: [...], numOfRows, pageNo, totalCount, currentCount }`
+ *  - Platform-level auth/key errors (any service): `{ OpenAPI_ServiceResponse:
+ *    { cmmMsgHeader: { errMsg, returnAuthMsg, returnReasonCode } } }`
+ *
+ * fetchMofaItems() below checks all three shapes rather than assuming one.
+ * Requests send both `type=json` (confirmed empirically — a live call
+ * returned a valid JSON error body even though CountrySafetyService's own
+ * doc only lists XML support) and `returnType=JSON` (TravelAlarmService2's
+ * own documented param name for the same thing) since which one a given
+ * service actually honors isn't consistent either.
  */
 
 const BASE = 'http://apis.data.go.kr/1262000';
 
 /**
- * data.go.kr/data/15076237 — 외교부_국가·지역별 여행경보.
- * TODO: field names below are still best-effort guesses (see
- * TRAVEL_ALARM_LEVEL_RISK/travelAlarmRisk in dataGoKrSource.ts) — no
- * official field-level spec doc for this one has been confirmed yet,
- * unlike CountrySafetyService below.
+ * data.go.kr/data/15076237 — 외교부_국가·지역별 여행경보 (TravelAlarmService2).
+ * Confirmed via 외교부_국가∙지역별 여행경보 Open API 활용가이드 v1.4.docx.
+ * Response fields (flat, under top-level `data[]` — see file header):
+ * country_nm (한글), country_eng_nm (영문), country_iso_alp2, continent_cd,
+ * continent_nm, continent_eng_nm, alarm_lvl (경보단계 — empty string when no
+ * active alarm; non-empty encoding not confirmed by a live example yet),
+ * remark (비고), region_ty (지역유형), written_dt (작성일). Also supports
+ * server-side filtering via `cond[country_nm::EQ]` / `cond[country_iso_alp2::EQ]`
+ * (exact match) — not used here since an exact-match miss on our own
+ * countryName spelling would silently return zero rows; client-side
+ * filterByCountry() in dataGoKrSource.ts is used instead for robustness.
  */
 export const TRAVEL_ALARM_URL = `${BASE}/TravelAlarmService2/getTravelAlarmList2`;
 /**
@@ -60,7 +71,13 @@ export async function fetchMofaItems(
   serviceKey: string,
   params: MofaApiParams = {},
 ): Promise<Record<string, unknown>[]> {
-  const qs = new URLSearchParams({ serviceKey, type: 'json', numOfRows: '100', pageNo: '1' });
+  const qs = new URLSearchParams({
+    serviceKey,
+    type: 'json',
+    returnType: 'JSON',
+    numOfRows: '100',
+    pageNo: '1',
+  });
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined) qs.set(key, String(value));
   }
@@ -89,12 +106,8 @@ export async function fetchMofaItems(
     throw new Error(`mofaApi: ${url} did not return JSON — raw response: ${text.slice(0, 300)}`);
   }
 
-  // data.go.kr has two distinct error envelopes: a platform-wide one used
-  // for request-level problems (bad/unregistered service key, malformed
-  // params — cmmMsgHeader.returnReasonCode) and a per-service one used for
-  // business-logic errors (response.header.resultCode). Check both rather
-  // than assuming only the per-service shape, or a platform-level failure
-  // silently falls through as an empty item list instead of a clear error.
+  // Platform-level error (bad/unregistered service key, malformed request)
+  // — this envelope shows up regardless of which service was called.
   const commonError = data?.OpenAPI_ServiceResponse?.cmmMsgHeader;
   if (commonError) {
     throw new Error(
@@ -102,13 +115,27 @@ export async function fetchMofaItems(
     );
   }
 
-  const header = data?.response?.header;
-  if (header && header.resultCode !== '00' && header.resultCode !== undefined) {
-    throw new Error(`mofaApi: ${url} returned ${header.resultCode} ${header.resultMsg ?? ''}`);
+  // CountrySafetyService-style: { response: { header: { resultCode: "00" }, body: { items: { item: [...] } } } }
+  const nestedHeader = data?.response?.header;
+  if (nestedHeader) {
+    if (nestedHeader.resultCode !== '00' && nestedHeader.resultCode !== undefined) {
+      throw new Error(`mofaApi: ${url} returned ${nestedHeader.resultCode} ${nestedHeader.resultMsg ?? ''}`);
+    }
+    const items = data?.response?.body?.items?.item ?? data?.response?.body?.items ?? [];
+    return Array.isArray(items) ? items : [items];
   }
 
-  const items = data?.response?.body?.items?.item ?? data?.response?.body?.items ?? [];
-  return Array.isArray(items) ? items : [items];
+  // TravelAlarmService2-style: flat, { resultCode: 0, resultMsg, data: [...] }
+  if (data?.resultCode !== undefined || Array.isArray(data?.data)) {
+    if (data.resultCode !== 0 && data.resultCode !== undefined) {
+      throw new Error(`mofaApi: ${url} returned ${data.resultCode} ${data.resultMsg ?? ''}`);
+    }
+    const items = data?.data ?? [];
+    return Array.isArray(items) ? items : [items];
+  }
+
+  // Unrecognized shape — surface it rather than silently returning nothing.
+  throw new Error(`mofaApi: ${url} returned an unrecognized response shape: ${text.slice(0, 300)}`);
 }
 
 /** Reads the first defined value among several candidate field-name guesses. */

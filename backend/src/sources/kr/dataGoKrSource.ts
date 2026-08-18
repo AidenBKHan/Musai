@@ -7,6 +7,15 @@ import {
   STATUS_LABELS,
 } from '../../models/safetyIndex';
 import { SafetySearchQuery, SafetySource } from '../types';
+import {
+  COUNTRY_ACCIDENT_URL,
+  COUNTRY_SAFETY_NOTICE_URL,
+  SP_TRAVEL_WARNING_URL,
+  TRAVEL_ALARM_URL,
+  fetchMofaItems,
+  pickField,
+} from './mofaApi';
+import { fetchWeatherRisk } from './kmaWeatherApi';
 
 interface DestinationProfile {
   countryCode: string;
@@ -142,8 +151,8 @@ export class DataGoKrSource implements SafetySource {
   }
 
   private async buildIndex(profile: DestinationProfile): Promise<SafetyIndex> {
-    const components = await this.fetchRiskComponents(profile);
-    const score = computeSafetyCheckIndex(components);
+    const { components, realtimeEventCorrection } = await this.fetchRiskComponents(profile);
+    const score = computeSafetyCheckIndex(components, realtimeEventCorrection);
     const status = statusFor(score);
     return {
       countryCode: profile.countryCode,
@@ -161,48 +170,185 @@ export class DataGoKrSource implements SafetySource {
     };
   }
 
-  private async fetchRiskComponents(profile: DestinationProfile): Promise<RiskComponent[]> {
+  private async fetchRiskComponents(
+    profile: DestinationProfile,
+  ): Promise<{ components: RiskComponent[]; realtimeEventCorrection: number }> {
     if (!this.serviceKey) {
       // No service key configured — return the proposal's worked-example
       // risk components so the pipeline (API → app → widget) is
       // exercisable end-to-end before real MOFA credentials exist.
-      return profile.components;
+      return { components: profile.components, realtimeEventCorrection: 0 };
     }
 
-    // TODO: replace with live calls to data.go.kr's real MOFA (외교부)
-    // datasets using this.serviceKey. Confirmed datasets, one per risk
-    // component below:
-    //
-    //  여행경보 단계
-    //   - 외교부_국가·지역별 여행경보 — data.go.kr/data/15076237
-    //     GET apis.data.go.kr/1262000/TravelAlarmService2/getTravelAlarmList2
-    //   - 외교부_국가별 여행경보 히스토리 — data.go.kr/data/15059195
-    //   - 외교부_여행경보제도 (tier definitions) — data.go.kr/data/15000827
-    //
-    //  최근 공지
-    //   - 외교부_국가·지역별 안전공지 — data.go.kr/data/15076239
-    //
-    //  사건사고·치안정보
-    //   - 외교부_국가·지역별 사건사고 유형 — data.go.kr/data/15076236
-    //   - 외교부_사건사고 예방정보 — data.go.kr/data/15000654
-    //
-    //  실시간 이벤트 보정 (특별여행주의보 등)
-    //   - 외교부_국가·지역별 특별여행주의보 — data.go.kr/data/15076244
-    //
-    //  기상·재난정보 — NOT a MOFA dataset; this is 기상청 (KMA) public data,
-    //  a separate agency/service key, per the proposal's phase-2 plan.
-    //
-    //  참고 (not a risk component, but needed for the widget's 재외공관
-    //  연락처 display and country-code normalization):
-    //   - 외교부_국가·지역별 재외공관 정보 — data.go.kr/data/15075354
-    //     (전화번호/영사콜센터/긴급전화번호/주소)
-    //   - 외교부_재외공관 홈페이지 — data.go.kr/data/15075347
-    //   - 외교부_국가표준코드 — data.go.kr/data/15091117
-    //
-    // Map each dataset's fields onto a RiskComponent so this function's
-    // signature never needs to change as datasets are added.
-    throw new Error(
-      'DATA_GO_KR_SERVICE_KEY is set but fetchRiskComponents() has no dataset wired up yet — see TODO in dataGoKrSource.ts',
+    const key = this.serviceKey;
+    const [travelAlarm, notices, accidents, weather, specialWarning] = await Promise.allSettled([
+      fetchMofaItems(TRAVEL_ALARM_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchMofaItems(COUNTRY_SAFETY_NOTICE_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchMofaItems(COUNTRY_ACCIDENT_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchWeatherRisk(profile.countryCode, key),
+      fetchMofaItems(SP_TRAVEL_WARNING_URL, key).then((items) => filterByCountry(items, profile)),
+    ]);
+
+    const fallback = profile.components;
+
+    const components: RiskComponent[] = [
+      {
+        label: '여행경보 위험점수',
+        weight: 0.4,
+        riskScore: settledOr(travelAlarm, fallback[0].riskScore, (items) => travelAlarmRisk(items)),
+      },
+      {
+        label: '최근 공지 위험점수',
+        weight: 0.25,
+        riskScore: settledOr(notices, fallback[1].riskScore, (items) => noticeCountRisk(items)),
+      },
+      {
+        label: '사건사고·치안 위험점수',
+        weight: 0.2,
+        riskScore: settledOr(accidents, fallback[2].riskScore, (items) => countryAccidentRisk(items)),
+      },
+      {
+        label: '기상·재난 위험점수',
+        weight: 0.15,
+        // fetchWeatherRisk() itself returns undefined (not a rejection) for
+        // destinations with no GTS station coverage (e.g. Cambodia) — that
+        // still needs to fall back to the proposal's placeholder value.
+        riskScore: settledOr(weather, fallback[3].riskScore, (score) => score ?? fallback[3].riskScore),
+      },
+    ];
+
+    // 특별여행주의보 (SpTravelWarningServiceV2) is the dataset the proposal
+    // earmarked for "실시간 이벤트 보정" — a country actively flagged with a
+    // 철수권고(evacuate)/여행금지(forbidden) special advisory subtracts
+    // directly from the final index, on top of the weighted components.
+    const realtimeEventCorrection = settledOr(specialWarning, 0, (items) =>
+      specialWarningCorrection(items),
     );
+
+    return { components, realtimeEventCorrection };
   }
+}
+
+/**
+ * MOFA's own search params for these endpoints aren't independently
+ * confirmed (no outbound network access to sample a real request from this
+ * sandbox) — so instead of guessing a query-param name, this fetches a
+ * broad page and matches the destination client-side against every string
+ * field in each item. Less efficient than a proper server-side filter, but
+ * robust to whatever the actual param name turns out to be.
+ */
+function filterByCountry(
+  items: Record<string, unknown>[],
+  profile: DestinationProfile,
+): Record<string, unknown>[] {
+  const needles = [profile.countryCode, profile.countryName, ...profile.aliases].map((s) =>
+    s.toLowerCase(),
+  );
+  return items.filter((item) => {
+    const haystack = Object.values(item).join(' ').toLowerCase();
+    return needles.some((needle) => haystack.includes(needle));
+  });
+}
+
+/** Unwraps a Promise.allSettled result, falling back to the proposal's worked-example value on any failure. */
+function settledOr<T>(
+  result: PromiseSettledResult<T>,
+  fallback: number,
+  extract: (value: T) => number,
+): number {
+  if (result.status === 'rejected') {
+    console.warn('musai-backend: MOFA API call failed, using fallback value —', result.reason);
+    return fallback;
+  }
+  return extract(result.value);
+}
+
+// 여행경보제도 defines 4 tiers: 1=남색경보(여행유의), 2=황색경보(여행자제),
+// 3=적색경보(철수권고), 4=흑색경보(여행금지). The response field for this is
+// confirmed to be `alarm_lvl` (외교부_국가∙지역별 여행경보 활용가이드 v1.4.docx),
+// but the doc's own sample value was an empty string (Ghana had no active
+// alarm), so the exact non-empty encoding (numeric tier vs. the Korean tier
+// name vs. a color name) isn't confirmed — tries numeric first, then a
+// Korean-keyword match against both alarm_lvl and remark (비고).
+const TIER_KEYWORD_RISK: Array<[RegExp, number]> = [
+  [/흑색|여행금지|금지/, 100],
+  [/적색|철수권고|철수/, 75],
+  [/황색|여행자제|자제/, 50],
+  [/남색|여행유의|유의/, 25],
+];
+
+function travelAlarmRisk(items: Record<string, unknown>[]): number {
+  // The list returns one row per country/region regardless of alarm status
+  // (region_ty suggests some countries have several rows for sub-regions
+  // with different alarm levels) — so zero matching rows means our country
+  // name/code didn't match anything in the list (a lookup miss), not "no
+  // active alarm", and multiple matches take the highest (most protective).
+  if (items.length === 0) return 30;
+
+  const risks = items.map((item) => {
+    const alarmLvl = pickField(item, ['alarm_lvl']) ?? '';
+    if (!alarmLvl) return 15; // matched the country; alarm_lvl is blank — no active alarm
+    if (TRAVEL_ALARM_LEVEL_RISK[alarmLvl] !== undefined) return TRAVEL_ALARM_LEVEL_RISK[alarmLvl];
+    const text = `${alarmLvl} ${pickField(item, ['remark']) ?? ''}`;
+    const tier = TIER_KEYWORD_RISK.find(([pattern]) => pattern.test(text));
+    return tier ? tier[1] : 40; // alarm_lvl is non-empty but unrecognized — assume some elevated risk
+  });
+  return Math.max(...risks);
+}
+
+const TRAVEL_ALARM_LEVEL_RISK: Record<string, number> = { '1': 25, '2': 50, '3': 75, '4': 100 };
+
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+// "최근 30~90일 내 공지 건수, 긴급공지 여부, 반복 위험 키워드" per the
+// proposal's own spec. Field names (wrtDt/title/content) are confirmed
+// against 외교부_기술문서_국가별 안전정보_v1.9.docx — see COUNTRY_SAFETY_NOTICE_URL
+// in mofaApi.ts.
+function noticeCountRisk(items: Record<string, unknown>[]): number {
+  const now = Date.now();
+  const recent = items.filter((item) => {
+    const wrtDt = pickField(item, ['wrtDt']);
+    if (!wrtDt) return true; // no date on record — count it conservatively
+    const parsed = Date.parse(wrtDt);
+    return Number.isNaN(parsed) || now - parsed <= NINETY_DAYS_MS;
+  });
+  const urgentCount = recent.filter((item) => {
+    const text = `${pickField(item, ['title']) ?? ''} ${pickField(item, ['content']) ?? ''}`;
+    return /긴급|위험|주의보|자제|철수/.test(text);
+  }).length;
+  return Math.min(100, 10 + recent.length * 6 + urgentCount * 10);
+}
+
+// CountryAccidentService2's `news` field is an HTML write-up (사건ㆍ사고
+// 현황/유형, 자연재해, 유의해야할 지역 sections — see the confirmed sample
+// in mofaApi.ts's COUNTRY_ACCIDENT_URL comment). Length and severe-keyword
+// density stand in for "how much documented risk content exists" since
+// there's no numeric severity field to read directly.
+function countryAccidentRisk(items: Record<string, unknown>[]): number {
+  if (items.length === 0) return 30; // lookup miss (no matching country row), not "no risk"
+  const news = pickField(items[0], ['news']) ?? '';
+  if (!news) return 15;
+
+  const text = news.replace(/<[^>]+>/g, ' ');
+  const severeCount = (text.match(/강도|살인|테러|납치|강간|폭탄|무장|총격/g) ?? []).length;
+  const cautionCount = (text.match(/유의|주의|자제|위험|경계/g) ?? []).length;
+
+  let risk = 20 + Math.min(20, Math.floor(text.length / 500));
+  risk += Math.min(30, severeCount * 8);
+  risk += Math.min(20, cautionCount * 2);
+  return Math.min(100, risk);
+}
+
+// 철수권고(evacuate)/여행금지(forbidden) special-advisory flags subtract
+// directly from the final index as a real-time correction, per the
+// proposal's own "대규모 시위, 공항 폐쇄, 감염병 확산... 실시간 이벤트
+// 보정점수를 별도로 적용" spec — these two fields are non-empty (e.g. "일부")
+// only when that specific advisory is actively in force for the country.
+function specialWarningCorrection(items: Record<string, unknown>[]): number {
+  if (items.length === 0) return 0;
+  const item = items[0];
+  let correction = 0;
+  if (pickField(item, ['forbidden_region_ty'])) correction += 20;
+  if (pickField(item, ['evacuate_region_ty'])) correction += 10;
+  return correction;
 }

@@ -14,6 +14,7 @@ import {
   fetchMofaItems,
   pickField,
 } from './mofaApi';
+import { fetchWeatherRisk } from './kmaWeatherApi';
 
 interface DestinationProfile {
   countryCode: string;
@@ -177,15 +178,13 @@ export class DataGoKrSource implements SafetySource {
     }
 
     const key = this.serviceKey;
-    const [travelAlarm, notices, accidents] = await Promise.allSettled([
+    const [travelAlarm, notices, accidents, weather] = await Promise.allSettled([
       fetchMofaItems(TRAVEL_ALARM_URL, key).then((items) => filterByCountry(items, profile)),
       fetchMofaItems(COUNTRY_SAFETY_NOTICE_URL, key).then((items) => filterByCountry(items, profile)),
       fetchMofaItems(ACCIDENT_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchWeatherRisk(profile.countryCode, key),
     ]);
 
-    // 기상·재난 위험점수 is not a MOFA dataset (it's 기상청/KMA, a separate
-    // agency + service key) — still using the proposal's worked-example
-    // value for that one component until the KMA integration lands.
     const fallback = profile.components;
 
     return [
@@ -204,7 +203,14 @@ export class DataGoKrSource implements SafetySource {
         weight: 0.2,
         riskScore: settledOr(accidents, fallback[2].riskScore, (items) => accidentCountRisk(items)),
       },
-      { label: '기상·재난 위험점수', weight: 0.15, riskScore: fallback[3].riskScore },
+      {
+        label: '기상·재난 위험점수',
+        weight: 0.15,
+        // fetchWeatherRisk() itself returns undefined (not a rejection) for
+        // destinations with no GTS station coverage (e.g. Cambodia) — that
+        // still needs to fall back to the proposal's placeholder value.
+        riskScore: settledOr(weather, fallback[3].riskScore, (score) => score ?? fallback[3].riskScore),
+      },
     ];
   }
 }

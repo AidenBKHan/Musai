@@ -52,7 +52,18 @@ export const COUNTRY_SAFETY_NOTICE_URL = `${BASE}/CountrySafetyService/getCountr
  * same caveat as TRAVEL_ALARM_URL above.
  */
 export const ACCIDENT_URL = `${BASE}/AccidentService/getAccidentList`;
-/** data.go.kr/data/15075354 — 외교부_국가·지역별 재외공관 정보 */
+/**
+ * data.go.kr/data/15075354 — 외교부_국가·지역별 재외공관 정보 (EmbassyService2).
+ * Confirmed via 외교부_국가∙지역별 재외공관정보 Open API 활용가이드 v1.4.docx.
+ * Flat envelope like TravelAlarmService2 (top-level resultCode/data[]).
+ * Response fields: country_nm/country_eng_nm/country_iso_alp2,
+ * embassy_kor_nm (공관 한글명), embassy_ty_cd_nm (공관유형, e.g. "대사관"),
+ * embassy_manage_ty_cd_nm, emblgbd_addr (주소), embassy_lat/embassy_lng,
+ * tel_no (대표전화), urgency_tel_no (긴급전화), free_tel_no (무료전화),
+ * center_tel_no (영사관 번호). NOT yet wired into SafetyIndex/the widget —
+ * the widget's "공관 연락처 보기" button is still a demo-only alert; doing
+ * that is a separate feature decision, not a field-name fix.
+ */
 export const EMBASSY_URL = `${BASE}/EmbassyService2/getEmbassyList2`;
 /** data.go.kr/data/15075346 — 외교부_국가·지역별 표준코드 */
 export const COUNTRY_CODE_URL = `${BASE}/CountryCodeService/getCountryCodeList`;
@@ -75,6 +86,7 @@ export async function fetchMofaItems(
     serviceKey,
     type: 'json',
     returnType: 'JSON',
+    dataType: 'JSON', // KMA's GtsInfoService uses this param name instead
     numOfRows: '100',
     pageNo: '1',
   });

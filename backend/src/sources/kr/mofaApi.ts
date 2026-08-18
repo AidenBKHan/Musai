@@ -47,11 +47,40 @@ export const TRAVEL_ALARM_URL = `${BASE}/TravelAlarmService2/getTravelAlarmList2
  */
 export const COUNTRY_SAFETY_NOTICE_URL = `${BASE}/CountrySafetyService/getCountrySafetyList`;
 /**
- * data.go.kr/data/15000654 — 외교부_사건사고 예방정보 (also covers
- * 15076236 사건사고 유형). TODO: field names still best-effort guesses,
- * same caveat as TRAVEL_ALARM_URL above.
+ * data.go.kr/data/15076236 — 외교부_국가∙지역별 사건사고 유형 (CountryAccidentService2).
+ * Confirmed via 외교부_국가∙지역별 사건사고 유형 Open API 활용가이드 v1.4.docx.
+ * Flat envelope like TravelAlarmService2. Response fields: country_nm/
+ * country_eng_nm/country_iso_alp2, continent_cd/continent_nm/continent_eng_nm,
+ * news (HTML string with incident content, e.g. a "사건ㆍ사고 현황" section —
+ * empty when nothing on record), wrt_dt (작성일). Replaces an earlier guess
+ * at AccidentService/getAccidentList (사건사고 예방정보, data.go.kr/data/15000654)
+ * whose field names were never independently confirmed — this dataset's name
+ * ("사건사고 유형") also matches the proposal's own risk-component table
+ * more directly than "예방정보" (prevention guidance text) did.
  */
-export const ACCIDENT_URL = `${BASE}/AccidentService/getAccidentList`;
+export const COUNTRY_ACCIDENT_URL = `${BASE}/CountryAccidentService2/CountryAccidentService2`;
+/**
+ * data.go.kr/data/15076244 — 외교부_국가∙지역별 특별여행주의보 (SpTravelWarningServiceV2).
+ * Confirmed via 외교부_국가∙지역별 특별여행주의보 Open API 활용가이드 v1.docx.
+ * Nested envelope like CountrySafetyService. Response fields: country_nm/
+ * country_eng_nm/country_iso_alp2, evacuate_region_ty (철수권고 여부— e.g.
+ * "일부", empty when not applicable), forbidden_region_ty (여행금지 여부),
+ * evacuate_rcmnd_remark/forbidden_rcmnd_remark (비고 text), written_dt.
+ * This is the dataset the proposal's own TODO earmarked for "실시간 이벤트
+ * 보정" (real-time event correction) — not wired into that yet.
+ */
+export const SP_TRAVEL_WARNING_URL = `${BASE}/SptravelWarningServiceV2/getSpTravelWarningListV2`;
+/**
+ * data.go.kr/data/15095502(치안환경) — 외교부_국가·지역별 치안환경 (SecurityEnvironmentService).
+ * Confirmed via 외교부_국가·지역별 치안환경 Open API 활용가이드 v1.1.docx.
+ * Flat envelope. Response fields include current_travel_alarm — a
+ * human-readable string like "4단계: 여행금지" — a useful independent
+ * cross-check for travelAlarmRisk() in dataGoKrSource.ts, since
+ * TravelAlarmService2's own alarm_lvl field's non-empty encoding still
+ * isn't confirmed by a live example. Also has suicide_death_rate/
+ * unemployment_rate (not used here).
+ */
+export const SECURITY_ENV_URL = `${BASE}/SecurityEnvironmentService/getSecurityEnvironmentList`;
 /**
  * data.go.kr/data/15075354 — 외교부_국가·지역별 재외공관 정보 (EmbassyService2).
  * Confirmed via 외교부_국가∙지역별 재외공관정보 Open API 활용가이드 v1.4.docx.
@@ -130,7 +159,7 @@ export async function fetchMofaItems(
   // CountrySafetyService-style: { response: { header: { resultCode: "00" }, body: { items: { item: [...] } } } }
   const nestedHeader = data?.response?.header;
   if (nestedHeader) {
-    if (nestedHeader.resultCode !== '00' && nestedHeader.resultCode !== undefined) {
+    if (!isSuccessCode(nestedHeader.resultCode)) {
       throw new Error(`mofaApi: ${url} returned ${nestedHeader.resultCode} ${nestedHeader.resultMsg ?? ''}`);
     }
     const items = data?.response?.body?.items?.item ?? data?.response?.body?.items ?? [];
@@ -139,7 +168,7 @@ export async function fetchMofaItems(
 
   // TravelAlarmService2-style: flat, { resultCode: 0, resultMsg, data: [...] }
   if (data?.resultCode !== undefined || Array.isArray(data?.data)) {
-    if (data.resultCode !== 0 && data.resultCode !== undefined) {
+    if (!isSuccessCode(data.resultCode)) {
       throw new Error(`mofaApi: ${url} returned ${data.resultCode} ${data.resultMsg ?? ''}`);
     }
     const items = data?.data ?? [];
@@ -148,6 +177,16 @@ export async function fetchMofaItems(
 
   // Unrecognized shape — surface it rather than silently returning nothing.
   throw new Error(`mofaApi: ${url} returned an unrecognized response shape: ${text.slice(0, 300)}`);
+}
+
+// Success is encoded as "00", "0", or numeric 0 depending on the service
+// (confirmed by comparing CountrySafetyService's "00" against
+// SpTravelWarningServiceV2's "0", both using the same nested envelope
+// shape) — normalize rather than compare against one literal.
+function isSuccessCode(code: unknown): boolean {
+  if (code === undefined) return true;
+  const num = Number(code);
+  return !Number.isNaN(num) && num === 0;
 }
 
 /** Reads the first defined value among several candidate field-name guesses. */

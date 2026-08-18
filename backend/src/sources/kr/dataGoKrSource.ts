@@ -8,8 +8,9 @@ import {
 } from '../../models/safetyIndex';
 import { SafetySearchQuery, SafetySource } from '../types';
 import {
-  ACCIDENT_URL,
+  COUNTRY_ACCIDENT_URL,
   COUNTRY_SAFETY_NOTICE_URL,
+  SP_TRAVEL_WARNING_URL,
   TRAVEL_ALARM_URL,
   fetchMofaItems,
   pickField,
@@ -150,8 +151,8 @@ export class DataGoKrSource implements SafetySource {
   }
 
   private async buildIndex(profile: DestinationProfile): Promise<SafetyIndex> {
-    const components = await this.fetchRiskComponents(profile);
-    const score = computeSafetyCheckIndex(components);
+    const { components, realtimeEventCorrection } = await this.fetchRiskComponents(profile);
+    const score = computeSafetyCheckIndex(components, realtimeEventCorrection);
     const status = statusFor(score);
     return {
       countryCode: profile.countryCode,
@@ -169,25 +170,28 @@ export class DataGoKrSource implements SafetySource {
     };
   }
 
-  private async fetchRiskComponents(profile: DestinationProfile): Promise<RiskComponent[]> {
+  private async fetchRiskComponents(
+    profile: DestinationProfile,
+  ): Promise<{ components: RiskComponent[]; realtimeEventCorrection: number }> {
     if (!this.serviceKey) {
       // No service key configured — return the proposal's worked-example
       // risk components so the pipeline (API → app → widget) is
       // exercisable end-to-end before real MOFA credentials exist.
-      return profile.components;
+      return { components: profile.components, realtimeEventCorrection: 0 };
     }
 
     const key = this.serviceKey;
-    const [travelAlarm, notices, accidents, weather] = await Promise.allSettled([
+    const [travelAlarm, notices, accidents, weather, specialWarning] = await Promise.allSettled([
       fetchMofaItems(TRAVEL_ALARM_URL, key).then((items) => filterByCountry(items, profile)),
       fetchMofaItems(COUNTRY_SAFETY_NOTICE_URL, key).then((items) => filterByCountry(items, profile)),
-      fetchMofaItems(ACCIDENT_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchMofaItems(COUNTRY_ACCIDENT_URL, key).then((items) => filterByCountry(items, profile)),
       fetchWeatherRisk(profile.countryCode, key),
+      fetchMofaItems(SP_TRAVEL_WARNING_URL, key).then((items) => filterByCountry(items, profile)),
     ]);
 
     const fallback = profile.components;
 
-    return [
+    const components: RiskComponent[] = [
       {
         label: '여행경보 위험점수',
         weight: 0.4,
@@ -201,7 +205,7 @@ export class DataGoKrSource implements SafetySource {
       {
         label: '사건사고·치안 위험점수',
         weight: 0.2,
-        riskScore: settledOr(accidents, fallback[2].riskScore, (items) => accidentCountRisk(items)),
+        riskScore: settledOr(accidents, fallback[2].riskScore, (items) => countryAccidentRisk(items)),
       },
       {
         label: '기상·재난 위험점수',
@@ -212,6 +216,16 @@ export class DataGoKrSource implements SafetySource {
         riskScore: settledOr(weather, fallback[3].riskScore, (score) => score ?? fallback[3].riskScore),
       },
     ];
+
+    // 특별여행주의보 (SpTravelWarningServiceV2) is the dataset the proposal
+    // earmarked for "실시간 이벤트 보정" — a country actively flagged with a
+    // 철수권고(evacuate)/여행금지(forbidden) special advisory subtracts
+    // directly from the final index, on top of the weighted components.
+    const realtimeEventCorrection = settledOr(specialWarning, 0, (items) =>
+      specialWarningCorrection(items),
+    );
+
+    return { components, realtimeEventCorrection };
   }
 }
 
@@ -305,6 +319,36 @@ function noticeCountRisk(items: Record<string, unknown>[]): number {
   return Math.min(100, 10 + recent.length * 6 + urgentCount * 10);
 }
 
-function accidentCountRisk(items: Record<string, unknown>[]): number {
-  return Math.min(100, 10 + items.length * 10);
+// CountryAccidentService2's `news` field is an HTML write-up (사건ㆍ사고
+// 현황/유형, 자연재해, 유의해야할 지역 sections — see the confirmed sample
+// in mofaApi.ts's COUNTRY_ACCIDENT_URL comment). Length and severe-keyword
+// density stand in for "how much documented risk content exists" since
+// there's no numeric severity field to read directly.
+function countryAccidentRisk(items: Record<string, unknown>[]): number {
+  if (items.length === 0) return 30; // lookup miss (no matching country row), not "no risk"
+  const news = pickField(items[0], ['news']) ?? '';
+  if (!news) return 15;
+
+  const text = news.replace(/<[^>]+>/g, ' ');
+  const severeCount = (text.match(/강도|살인|테러|납치|강간|폭탄|무장|총격/g) ?? []).length;
+  const cautionCount = (text.match(/유의|주의|자제|위험|경계/g) ?? []).length;
+
+  let risk = 20 + Math.min(20, Math.floor(text.length / 500));
+  risk += Math.min(30, severeCount * 8);
+  risk += Math.min(20, cautionCount * 2);
+  return Math.min(100, risk);
+}
+
+// 철수권고(evacuate)/여행금지(forbidden) special-advisory flags subtract
+// directly from the final index as a real-time correction, per the
+// proposal's own "대규모 시위, 공항 폐쇄, 감염병 확산... 실시간 이벤트
+// 보정점수를 별도로 적용" spec — these two fields are non-empty (e.g. "일부")
+// only when that specific advisory is actively in force for the country.
+function specialWarningCorrection(items: Record<string, unknown>[]): number {
+  if (items.length === 0) return 0;
+  const item = items[0];
+  let correction = 0;
+  if (pickField(item, ['forbidden_region_ty'])) correction += 20;
+  if (pickField(item, ['evacuate_region_ty'])) correction += 10;
+  return correction;
 }

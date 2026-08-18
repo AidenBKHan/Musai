@@ -1,0 +1,89 @@
+/**
+ * Thin client for Korea's Ministry of Foreign Affairs (외교부) OpenAPIs on
+ * data.go.kr. All of these share the same request/response envelope
+ * (`response.header.resultCode` / `response.body.items.item[]`), a
+ * `serviceKey` query param, and support `type=json` to skip XML entirely —
+ * so one generic fetch function covers every endpoint below.
+ *
+ * Endpoint paths are confirmed against data.go.kr's own listing for each
+ * dataset ID (see the comment above each constant). Exact response *field
+ * names* are NOT independently confirmed — this sandbox has no outbound
+ * network access to data.go.kr to sample a real response — so the mapping
+ * functions in dataGoKrSource.ts try a few plausible field-name candidates
+ * defensively. Once a real response is available, tighten those to the
+ * actual field names.
+ */
+
+const BASE = 'http://apis.data.go.kr/1262000';
+
+/** data.go.kr/data/15076237 — 외교부_국가·지역별 여행경보 */
+export const TRAVEL_ALARM_URL = `${BASE}/TravelAlarmService2/getTravelAlarmList2`;
+/** data.go.kr/data/15076239 — 외교부_국가·지역별 안전공지 */
+export const COUNTRY_SAFETY_NOTICE_URL = `${BASE}/CountrySafetyService3/getCountrySafetyList3`;
+/** data.go.kr/data/15000654 — 외교부_사건사고 예방정보 (also covers 15076236 사건사고 유형) */
+export const ACCIDENT_URL = `${BASE}/AccidentService/getAccidentList`;
+/** data.go.kr/data/15075354 — 외교부_국가·지역별 재외공관 정보 */
+export const EMBASSY_URL = `${BASE}/EmbassyService2/getEmbassyList2`;
+/** data.go.kr/data/15075346 — 외교부_국가·지역별 표준코드 */
+export const COUNTRY_CODE_URL = `${BASE}/CountryCodeService/getCountryCodeList`;
+
+export interface MofaApiParams {
+  [key: string]: string | number | undefined;
+}
+
+/**
+ * Calls a MOFA OpenAPI endpoint and returns its `items.item` array (always
+ * an array, even when the API returns a single bare object for a one-row
+ * result — data.go.kr APIs do that inconsistently).
+ */
+export async function fetchMofaItems(
+  url: string,
+  serviceKey: string,
+  params: MofaApiParams = {},
+): Promise<Record<string, unknown>[]> {
+  const qs = new URLSearchParams({ serviceKey, type: 'json', numOfRows: '100', pageNo: '1' });
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) qs.set(key, String(value));
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  let res: Response;
+  try {
+    res = await fetch(`${url}?${qs.toString()}`, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!res.ok) {
+    throw new Error(`mofaApi: ${url} responded ${res.status}`);
+  }
+
+  const text = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Some MOFA datasets ignore type=json for error responses and return
+    // XML/plain-text even on failure (e.g. bad serviceKey) — surface the
+    // raw body so the cause is visible instead of a cryptic parse error.
+    throw new Error(`mofaApi: ${url} did not return JSON — raw response: ${text.slice(0, 300)}`);
+  }
+
+  const header = data?.response?.header;
+  if (header && header.resultCode !== '00' && header.resultCode !== undefined) {
+    throw new Error(`mofaApi: ${url} returned ${header.resultCode} ${header.resultMsg ?? ''}`);
+  }
+
+  const items = data?.response?.body?.items?.item ?? data?.response?.body?.items ?? [];
+  return Array.isArray(items) ? items : [items];
+}
+
+/** Reads the first defined value among several candidate field-name guesses. */
+export function pickField(item: Record<string, unknown>, candidates: string[]): string | undefined {
+  for (const key of candidates) {
+    const value = item[key];
+    if (value !== undefined && value !== null && value !== '') return String(value);
+  }
+  return undefined;
+}

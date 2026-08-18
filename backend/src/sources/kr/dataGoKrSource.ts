@@ -7,6 +7,13 @@ import {
   STATUS_LABELS,
 } from '../../models/safetyIndex';
 import { SafetySearchQuery, SafetySource } from '../types';
+import {
+  ACCIDENT_URL,
+  COUNTRY_SAFETY_NOTICE_URL,
+  TRAVEL_ALARM_URL,
+  fetchMofaItems,
+  pickField,
+} from './mofaApi';
 
 interface DestinationProfile {
   countryCode: string;
@@ -169,40 +176,92 @@ export class DataGoKrSource implements SafetySource {
       return profile.components;
     }
 
-    // TODO: replace with live calls to data.go.kr's real MOFA (외교부)
-    // datasets using this.serviceKey. Confirmed datasets, one per risk
-    // component below:
-    //
-    //  여행경보 단계
-    //   - 외교부_국가·지역별 여행경보 — data.go.kr/data/15076237
-    //     GET apis.data.go.kr/1262000/TravelAlarmService2/getTravelAlarmList2
-    //   - 외교부_국가별 여행경보 히스토리 — data.go.kr/data/15059195
-    //   - 외교부_여행경보제도 (tier definitions) — data.go.kr/data/15000827
-    //
-    //  최근 공지
-    //   - 외교부_국가·지역별 안전공지 — data.go.kr/data/15076239
-    //
-    //  사건사고·치안정보
-    //   - 외교부_국가·지역별 사건사고 유형 — data.go.kr/data/15076236
-    //   - 외교부_사건사고 예방정보 — data.go.kr/data/15000654
-    //
-    //  실시간 이벤트 보정 (특별여행주의보 등)
-    //   - 외교부_국가·지역별 특별여행주의보 — data.go.kr/data/15076244
-    //
-    //  기상·재난정보 — NOT a MOFA dataset; this is 기상청 (KMA) public data,
-    //  a separate agency/service key, per the proposal's phase-2 plan.
-    //
-    //  참고 (not a risk component, but needed for the widget's 재외공관
-    //  연락처 display and country-code normalization):
-    //   - 외교부_국가·지역별 재외공관 정보 — data.go.kr/data/15075354
-    //     (전화번호/영사콜센터/긴급전화번호/주소)
-    //   - 외교부_재외공관 홈페이지 — data.go.kr/data/15075347
-    //   - 외교부_국가표준코드 — data.go.kr/data/15091117
-    //
-    // Map each dataset's fields onto a RiskComponent so this function's
-    // signature never needs to change as datasets are added.
-    throw new Error(
-      'DATA_GO_KR_SERVICE_KEY is set but fetchRiskComponents() has no dataset wired up yet — see TODO in dataGoKrSource.ts',
-    );
+    const key = this.serviceKey;
+    const [travelAlarm, notices, accidents] = await Promise.allSettled([
+      fetchMofaItems(TRAVEL_ALARM_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchMofaItems(COUNTRY_SAFETY_NOTICE_URL, key).then((items) => filterByCountry(items, profile)),
+      fetchMofaItems(ACCIDENT_URL, key).then((items) => filterByCountry(items, profile)),
+    ]);
+
+    // 기상·재난 위험점수 is not a MOFA dataset (it's 기상청/KMA, a separate
+    // agency + service key) — still using the proposal's worked-example
+    // value for that one component until the KMA integration lands.
+    const fallback = profile.components;
+
+    return [
+      {
+        label: '여행경보 위험점수',
+        weight: 0.4,
+        riskScore: settledOr(travelAlarm, fallback[0].riskScore, (items) => travelAlarmRisk(items)),
+      },
+      {
+        label: '최근 공지 위험점수',
+        weight: 0.25,
+        riskScore: settledOr(notices, fallback[1].riskScore, (items) => noticeCountRisk(items)),
+      },
+      {
+        label: '사건사고·치안 위험점수',
+        weight: 0.2,
+        riskScore: settledOr(accidents, fallback[2].riskScore, (items) => accidentCountRisk(items)),
+      },
+      { label: '기상·재난 위험점수', weight: 0.15, riskScore: fallback[3].riskScore },
+    ];
   }
+}
+
+/**
+ * MOFA's own search params for these endpoints aren't independently
+ * confirmed (no outbound network access to sample a real request from this
+ * sandbox) — so instead of guessing a query-param name, this fetches a
+ * broad page and matches the destination client-side against every string
+ * field in each item. Less efficient than a proper server-side filter, but
+ * robust to whatever the actual param name turns out to be.
+ */
+function filterByCountry(
+  items: Record<string, unknown>[],
+  profile: DestinationProfile,
+): Record<string, unknown>[] {
+  const needles = [profile.countryCode, profile.countryName, ...profile.aliases].map((s) =>
+    s.toLowerCase(),
+  );
+  return items.filter((item) => {
+    const haystack = Object.values(item).join(' ').toLowerCase();
+    return needles.some((needle) => haystack.includes(needle));
+  });
+}
+
+/** Unwraps a Promise.allSettled result, falling back to the proposal's worked-example value on any failure. */
+function settledOr<T>(
+  result: PromiseSettledResult<T>,
+  fallback: number,
+  extract: (value: T) => number,
+): number {
+  if (result.status === 'rejected') {
+    console.warn('musai-backend: MOFA API call failed, using fallback value —', result.reason);
+    return fallback;
+  }
+  return extract(result.value);
+}
+
+// data.go.kr/data/15000827 (외교부_여행경보제도) defines 4 tiers: 1=남행유의,
+// 2=여행자제, 3=철수권고, 4=여행금지. Exact response field name for the tier
+// isn't confirmed (see mofaApi.ts header) — tries a few plausible candidates.
+const TRAVEL_ALARM_LEVEL_RISK: Record<string, number> = { '1': 25, '2': 50, '3': 75, '4': 100 };
+
+function travelAlarmRisk(items: Record<string, unknown>[]): number {
+  if (items.length === 0) return 15; // no active alarm on record — low baseline risk
+  const level = items
+    .map((item) => pickField(item, ['alarmLevel', 'alrmLvl', 'travelAlarmLevel', 'dangerLevel', 'gradeCode', 'grade']))
+    .find((v) => v && TRAVEL_ALARM_LEVEL_RISK[v] !== undefined);
+  return level ? TRAVEL_ALARM_LEVEL_RISK[level] : 30;
+}
+
+// "최근 30~90일 내 공지 건수, 긴급공지 여부" per the proposal's own spec —
+// more matching notices raises the risk score, capped at 100.
+function noticeCountRisk(items: Record<string, unknown>[]): number {
+  return Math.min(100, 10 + items.length * 8);
+}
+
+function accidentCountRisk(items: Record<string, unknown>[]): number {
+  return Math.min(100, 10 + items.length * 10);
 }

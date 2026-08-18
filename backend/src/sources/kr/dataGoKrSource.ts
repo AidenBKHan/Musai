@@ -256,10 +256,25 @@ function travelAlarmRisk(items: Record<string, unknown>[]): number {
   return level ? TRAVEL_ALARM_LEVEL_RISK[level] : 30;
 }
 
-// "최근 30~90일 내 공지 건수, 긴급공지 여부" per the proposal's own spec —
-// more matching notices raises the risk score, capped at 100.
+const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+
+// "최근 30~90일 내 공지 건수, 긴급공지 여부, 반복 위험 키워드" per the
+// proposal's own spec. Field names (wrtDt/title/content) are confirmed
+// against 외교부_기술문서_국가별 안전정보_v1.9.docx — see COUNTRY_SAFETY_NOTICE_URL
+// in mofaApi.ts.
 function noticeCountRisk(items: Record<string, unknown>[]): number {
-  return Math.min(100, 10 + items.length * 8);
+  const now = Date.now();
+  const recent = items.filter((item) => {
+    const wrtDt = pickField(item, ['wrtDt']);
+    if (!wrtDt) return true; // no date on record — count it conservatively
+    const parsed = Date.parse(wrtDt);
+    return Number.isNaN(parsed) || now - parsed <= NINETY_DAYS_MS;
+  });
+  const urgentCount = recent.filter((item) => {
+    const text = `${pickField(item, ['title']) ?? ''} ${pickField(item, ['content']) ?? ''}`;
+    return /긴급|위험|주의보|자제|철수/.test(text);
+  }).length;
+  return Math.min(100, 10 + recent.length * 6 + urgentCount * 10);
 }
 
 function accidentCountRisk(items: Record<string, unknown>[]): number {
